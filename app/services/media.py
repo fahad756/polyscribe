@@ -12,7 +12,7 @@ from fastapi import UploadFile
 from app.config import Settings
 
 
-OPENAI_DIRECT_EXTENSIONS = {".mp3", ".mp4", ".mpeg", ".mpga", ".m4a", ".wav", ".webm"}
+DIRECT_MEDIA_EXTENSIONS = {".mp3", ".mp4", ".mpeg", ".mpga", ".m4a", ".wav", ".webm"}
 READ_CHUNK_SIZE = 1024 * 1024
 
 
@@ -84,7 +84,7 @@ async def save_upload(file: UploadFile, settings: Settings) -> SavedUpload:
 
 def prepare_for_transcription(path: Path, settings: Settings) -> PreparedMedia:
     suffix = path.suffix.lower()
-    if path.stat().st_size <= settings.openai_audio_max_bytes and suffix in OPENAI_DIRECT_EXTENSIONS:
+    if path.stat().st_size <= settings.audio_chunk_max_bytes and suffix in DIRECT_MEDIA_EXTENSIONS:
         return PreparedMedia(paths=[path])
 
     ffmpeg_path = shutil.which("ffmpeg")
@@ -137,7 +137,7 @@ def prepare_for_transcription(path: Path, settings: Settings) -> PreparedMedia:
         shutil.rmtree(cleanup_dir, ignore_errors=True)
         raise MediaError("No audio track was found in the uploaded file.")
 
-    too_large = [chunk.name for chunk in chunks if chunk.stat().st_size > settings.openai_audio_max_bytes]
+    too_large = [chunk.name for chunk in chunks if chunk.stat().st_size > settings.audio_chunk_max_bytes]
     if too_large:
         shutil.rmtree(cleanup_dir, ignore_errors=True)
         raise MediaError(
@@ -152,4 +152,3 @@ def cleanup_media(saved_upload: SavedUpload, prepared: PreparedMedia | None, set
         shutil.rmtree(prepared.cleanup_dir, ignore_errors=True)
     if not settings.keep_uploads:
         saved_upload.path.unlink(missing_ok=True)
-

@@ -134,6 +134,7 @@ async def client_config():
     settings = get_settings()
     return {
         "appName": settings.app_name,
+        "aiProvider": settings.ai_provider,
         "maxUploadMb": settings.max_upload_mb,
         "allowedExtensions": sorted(settings.allowed_extensions),
         "authEnabled": auth_enabled(settings),
@@ -231,7 +232,7 @@ async def api_upload_media(
         metadata={
             "filename": saved.original_filename,
             "chunks": result.chunk_count,
-            "sourceLanguage": language.strip(),
+            "sourceLanguage": result.source_language or language.strip(),
         },
     )
     return {"chat": db.get_chat(chat_id), "messages": db.list_messages(chat_id)}

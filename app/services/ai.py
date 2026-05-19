@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
-from openai import OpenAI
+import httpx
 
 from app.config import Settings
 
@@ -20,27 +21,175 @@ Core behavior:
 - Do not pretend to process files that have not been uploaded through the app.
 """
 
+LOCAL_SYSTEM_PROMPT = SYSTEM_PROMPT + """
+
+You are running on a local free model. Keep responses concise and task-focused.
+When the user asks for a translation, infer the source language automatically.
+"""
+
 
 class AIServiceError(RuntimeError):
-    """Raised when the model provider cannot complete a request."""
+    """Raised when the configured AI provider cannot complete a request."""
 
 
 @dataclass(frozen=True)
 class TranscriptionResult:
     text: str
     chunk_count: int
+    source_language: str = ""
+
+
+class AIProvider(Protocol):
+    def chat(self, messages: list[dict[str, Any]]) -> str:
+        ...
+
+    def transcribe_paths(
+        self,
+        paths: list[Path],
+        prompt: str = "",
+        language: str = "",
+    ) -> TranscriptionResult:
+        ...
 
 
 class AIService:
     def __init__(self, settings: Settings):
+        provider = settings.ai_provider
+        if provider in {"local", "free", "ollama"}:
+            self._provider: AIProvider = LocalAIProvider(settings)
+        elif provider in {"openai", "gpt"}:
+            self._provider = OpenAIProvider(settings)
+        else:
+            raise AIServiceError(
+                f"Unsupported AI_PROVIDER '{settings.ai_provider}'. Use 'local' or 'openai'."
+            )
+
+    def chat(self, messages: list[dict[str, Any]]) -> str:
+        return self._provider.chat(messages)
+
+    def transcribe_paths(
+        self,
+        paths: list[Path],
+        prompt: str = "",
+        language: str = "",
+    ) -> TranscriptionResult:
+        return self._provider.transcribe_paths(paths, prompt, language)
+
+
+class LocalAIProvider:
+    def __init__(self, settings: Settings):
         self.settings = settings
-        self._client: OpenAI | None = None
+
+    def chat(self, messages: list[dict[str, Any]]) -> str:
+        payload = {
+            "model": self.settings.ollama_model,
+            "stream": False,
+            "messages": _messages_for_ollama(messages, self.settings.max_chat_context_chars),
+            "options": {"temperature": 0.2},
+        }
+
+        try:
+            response = httpx.post(
+                f"{self.settings.ollama_base_url}/api/chat",
+                json=payload,
+                timeout=self.settings.request_timeout_seconds,
+            )
+            response.raise_for_status()
+        except httpx.ConnectError as exc:
+            raise AIServiceError(
+                "Local chat needs Ollama running. Install Ollama, run "
+                f"'ollama pull {self.settings.ollama_model}', then start the app again."
+            ) from exc
+        except httpx.HTTPStatusError as exc:
+            detail = exc.response.text.strip()
+            raise AIServiceError(f"Ollama chat failed: {detail}") from exc
+        except httpx.HTTPError as exc:
+            raise AIServiceError(f"Ollama chat failed: {exc}") from exc
+
+        data = response.json()
+        text = (data.get("message") or {}).get("content") or data.get("response") or ""
+        text = text.strip()
+        if not text:
+            raise AIServiceError("Ollama returned an empty response.")
+        return text
+
+    def transcribe_paths(
+        self,
+        paths: list[Path],
+        prompt: str = "",
+        language: str = "",
+    ) -> TranscriptionResult:
+        transcripts: list[str] = []
+        detected_languages: list[str] = []
+
+        for index, path in enumerate(paths, start=1):
+            text, detected_language = self._transcribe_one(
+                path=path,
+                prompt=prompt,
+                language=language,
+            )
+            if detected_language:
+                detected_languages.append(detected_language)
+            if len(paths) > 1 and text:
+                transcripts.append(f"Part {index}\n{text}")
+            else:
+                transcripts.append(text)
+
+        text = "\n\n".join(part for part in transcripts if part.strip()).strip()
+        if not text:
+            raise AIServiceError("No speech was detected in the uploaded media.")
+
+        unique_languages = sorted(set(detected_languages))
+        return TranscriptionResult(
+            text=text,
+            chunk_count=len(paths),
+            source_language=", ".join(unique_languages),
+        )
+
+    def _transcribe_one(
+        self,
+        path: Path,
+        prompt: str = "",
+        language: str = "",
+    ) -> tuple[str, str]:
+        model = _local_whisper_model(
+            self.settings.local_whisper_model,
+            self.settings.local_whisper_device,
+            self.settings.local_whisper_compute_type,
+        )
+        try:
+            segments, info = model.transcribe(
+                str(path),
+                language=language.strip() or None,
+                initial_prompt=prompt.strip()[:2000] or None,
+                vad_filter=True,
+            )
+            text = "".join(segment.text for segment in segments).strip()
+        except Exception as exc:
+            raise AIServiceError(f"Local transcription failed: {exc}") from exc
+
+        detected_language = str(getattr(info, "language", "") or "").strip()
+        return text, detected_language
+
+
+class OpenAIProvider:
+    def __init__(self, settings: Settings):
+        self.settings = settings
+        self._client: Any | None = None
 
     @property
-    def client(self) -> OpenAI:
+    def client(self) -> Any:
         if not self.settings.openai_api_key:
             raise AIServiceError("OPENAI_API_KEY is not configured on the server.")
         if self._client is None:
+            try:
+                from openai import OpenAI
+            except ImportError as exc:
+                raise AIServiceError(
+                    "OpenAI provider selected, but the openai package is not installed. "
+                    "Install it with 'pip install openai'."
+                ) from exc
+
             self._client = OpenAI(
                 api_key=self.settings.openai_api_key,
                 timeout=self.settings.request_timeout_seconds,
@@ -48,14 +197,14 @@ class AIService:
         return self._client
 
     def chat(self, messages: list[dict[str, Any]]) -> str:
-        conversation = self._render_conversation(messages)
+        conversation = _render_conversation(messages, self.settings.max_chat_context_chars)
         try:
             response = self.client.responses.create(
                 model=self.settings.openai_text_model,
                 instructions=SYSTEM_PROMPT,
                 input=conversation,
             )
-        except Exception as exc:  # The SDK raises provider-specific subclasses.
+        except Exception as exc:
             raise AIServiceError(f"Model request failed: {exc}") from exc
 
         text = _response_output_text(response)
@@ -71,26 +220,26 @@ class AIService:
     ) -> TranscriptionResult:
         transcripts: list[str] = []
         for index, path in enumerate(paths, start=1):
-            transcripts.append(
-                self._transcribe_one(
-                    path=path,
-                    prompt=prompt,
-                    language=language,
-                    chunk_label=f"Part {index}" if len(paths) > 1 else "",
-                )
+            text = self._transcribe_one(
+                path=path,
+                prompt=prompt,
+                language=language,
             )
+            if len(paths) > 1 and text:
+                transcripts.append(f"Part {index}\n{text}")
+            else:
+                transcripts.append(text)
 
         text = "\n\n".join(part for part in transcripts if part.strip()).strip()
         if not text:
             raise AIServiceError("No speech was detected in the uploaded media.")
-        return TranscriptionResult(text=text, chunk_count=len(paths))
+        return TranscriptionResult(text=text, chunk_count=len(paths), source_language=language.strip())
 
     def _transcribe_one(
         self,
         path: Path,
         prompt: str = "",
         language: str = "",
-        chunk_label: str = "",
     ) -> str:
         base_kwargs: dict[str, Any] = {
             "model": self.settings.openai_transcription_model,
@@ -120,32 +269,71 @@ class AIService:
             except Exception as second_exc:
                 raise AIServiceError(f"Transcription failed: {second_exc}") from second_exc
 
-        text = _transcription_text(result).strip()
-        if chunk_label and text:
-            return f"{chunk_label}\n{text}"
-        return text
+        return _transcription_text(result).strip()
 
-    def _render_conversation(self, messages: list[dict[str, Any]]) -> str:
-        budget = self.settings.max_chat_context_chars
-        selected: list[str] = []
 
-        for message in reversed(messages[-30:]):
-            role = "Assistant" if message.get("role") == "assistant" else "User"
-            content = str(message.get("content") or "").strip()
-            if not content:
-                continue
+@lru_cache(maxsize=3)
+def _local_whisper_model(model_name: str, device: str, compute_type: str) -> Any:
+    try:
+        from faster_whisper import WhisperModel
+    except ImportError as exc:
+        raise AIServiceError(
+            "Local transcription needs faster-whisper. Install dependencies with "
+            "'pip install -r requirements.txt'."
+        ) from exc
 
-            rendered = f"{role}:\n{content}"
-            if len(rendered) > budget:
-                rendered = rendered[-budget:]
-            if len(rendered) + sum(len(item) for item in selected) > budget:
-                remaining = budget - sum(len(item) for item in selected)
-                if remaining > 500:
-                    selected.append(rendered[-remaining:])
-                break
-            selected.append(rendered)
+    try:
+        return WhisperModel(model_name, device=device, compute_type=compute_type)
+    except Exception as exc:
+        raise AIServiceError(f"Could not load local Whisper model '{model_name}': {exc}") from exc
 
-        return "\n\n".join(reversed(selected))
+
+def _messages_for_ollama(
+    messages: list[dict[str, Any]],
+    max_context_chars: int,
+) -> list[dict[str, str]]:
+    conversation: list[dict[str, str]] = []
+    for message in messages[-30:]:
+        role = "assistant" if message.get("role") == "assistant" else "user"
+        content = str(message.get("content") or "").strip()
+        if content:
+            conversation.append({"role": role, "content": content})
+
+    total = len(LOCAL_SYSTEM_PROMPT)
+    trimmed: list[dict[str, str]] = []
+    for message in reversed(conversation):
+        content = message["content"]
+        if total + len(content) > max_context_chars:
+            remaining = max_context_chars - total
+            if remaining > 500:
+                trimmed.append({"role": message["role"], "content": content[-remaining:]})
+            break
+        trimmed.append(message)
+        total += len(content)
+
+    return [{"role": "system", "content": LOCAL_SYSTEM_PROMPT}, *reversed(trimmed)]
+
+
+def _render_conversation(messages: list[dict[str, Any]], max_context_chars: int) -> str:
+    selected: list[str] = []
+
+    for message in reversed(messages[-30:]):
+        role = "Assistant" if message.get("role") == "assistant" else "User"
+        content = str(message.get("content") or "").strip()
+        if not content:
+            continue
+
+        rendered = f"{role}:\n{content}"
+        if len(rendered) > max_context_chars:
+            rendered = rendered[-max_context_chars:]
+        if len(rendered) + sum(len(item) for item in selected) > max_context_chars:
+            remaining = max_context_chars - sum(len(item) for item in selected)
+            if remaining > 500:
+                selected.append(rendered[-remaining:])
+            break
+        selected.append(rendered)
+
+    return "\n\n".join(reversed(selected))
 
 
 def _response_output_text(response: Any) -> str:
@@ -180,4 +368,3 @@ def _transcription_text(result: Any) -> str:
         text = result.get("text")
         return text if isinstance(text, str) else ""
     return ""
-

@@ -361,6 +361,7 @@ button {
 .upload-limit {
   color: var(--muted);
   font-size: 0.85rem;
+  white-space: nowrap;
 }
 
 .composer {
