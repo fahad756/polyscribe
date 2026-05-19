@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -350,9 +351,14 @@ class GeminiProvider:
         uploaded_file = None
         try:
             uploaded_file = self.client.files.upload(file=str(path))
+            active_file = _wait_for_gemini_file(
+                self.client,
+                uploaded_file,
+                timeout_seconds=max(60, self.settings.request_timeout_seconds),
+            )
             response = self.client.models.generate_content(
                 model=self.settings.gemini_model,
-                contents=[user_prompt, uploaded_file],
+                contents=[user_prompt, active_file],
             )
         except Exception as exc:
             raise AIServiceError(f"Gemini transcription failed: {exc}") from exc
@@ -463,6 +469,41 @@ def _delete_gemini_file(client: Any, uploaded_file: Any) -> None:
         client.files.delete(name=file_name)
     except Exception:
         pass
+
+
+def _wait_for_gemini_file(
+    client: Any,
+    uploaded_file: Any,
+    timeout_seconds: int,
+    poll_interval_seconds: float = 1.0,
+) -> Any:
+    file_name = getattr(uploaded_file, "name", "") or ""
+    if not file_name:
+        return uploaded_file
+
+    deadline = time.monotonic() + timeout_seconds
+    current_file = uploaded_file
+
+    while True:
+        state = _gemini_file_state(current_file)
+        if state in {"", "ACTIVE"}:
+            return current_file
+        if state == "FAILED":
+            detail = getattr(current_file, "error", "") or "Gemini file processing failed."
+            raise AIServiceError(str(detail))
+        if time.monotonic() >= deadline:
+            raise AIServiceError(
+                "Gemini file processing timed out before the uploaded media became ACTIVE."
+            )
+
+        time.sleep(poll_interval_seconds)
+        current_file = client.files.get(name=file_name)
+
+
+def _gemini_file_state(uploaded_file: Any) -> str:
+    state = getattr(uploaded_file, "state", "") or ""
+    value = getattr(state, "value", state)
+    return str(value).split(".")[-1].upper()
 
 
 def _transcription_text(result: Any) -> str:
