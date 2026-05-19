@@ -65,17 +65,12 @@ def _extensions_from_env() -> frozenset[str]:
 class Settings:
     app_name: str
     app_env: str
-    ai_provider: str
-    local_whisper_model: str
-    local_whisper_device: str
-    local_whisper_compute_type: str
-    ollama_base_url: str
-    ollama_model: str
+    chat_provider: str
+    transcription_provider: str
     gemini_api_key: str
     gemini_model: str
-    openai_api_key: str
-    openai_text_model: str
-    openai_transcription_model: str
+    groq_api_key: str
+    groq_transcription_model: str
     database_path: Path
     upload_dir: Path
     max_upload_mb: int
@@ -98,10 +93,6 @@ class Settings:
     def audio_chunk_max_bytes(self) -> int:
         return self.audio_chunk_max_mb * 1024 * 1024
 
-    @property
-    def openai_audio_max_bytes(self) -> int:
-        return self.audio_chunk_max_bytes
-
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
@@ -109,31 +100,26 @@ def get_settings() -> Settings:
     return Settings(
         app_name=os.getenv("APP_NAME", "PolyScribe"),
         app_env=app_env,
-        ai_provider=os.getenv("AI_PROVIDER", "local").strip().lower(),
-        local_whisper_model=os.getenv("LOCAL_WHISPER_MODEL", "base").strip(),
-        local_whisper_device=os.getenv("LOCAL_WHISPER_DEVICE", "cpu").strip(),
-        local_whisper_compute_type=os.getenv("LOCAL_WHISPER_COMPUTE_TYPE", "int8").strip(),
-        ollama_base_url=os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/"),
-        ollama_model=os.getenv("OLLAMA_MODEL", "llama3.2:3b").strip(),
+        chat_provider=os.getenv("CHAT_PROVIDER", "gemini").strip().lower(),
+        transcription_provider=os.getenv("TRANSCRIPTION_PROVIDER", "groq").strip().lower(),
         gemini_api_key=os.getenv("GEMINI_API_KEY", "").strip(),
         gemini_model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip(),
-        openai_api_key=os.getenv("OPENAI_API_KEY", ""),
-        openai_text_model=os.getenv("OPENAI_TEXT_MODEL", "gpt-5-mini"),
-        openai_transcription_model=os.getenv(
-            "OPENAI_TRANSCRIPTION_MODEL",
-            "gpt-4o-mini-transcribe",
-        ),
+        groq_api_key=os.getenv("GROQ_API_KEY", "").strip(),
+        groq_transcription_model=os.getenv(
+            "GROQ_TRANSCRIPTION_MODEL",
+            "whisper-large-v3-turbo",
+        ).strip(),
         database_path=Path(os.getenv("DATABASE_PATH", "runtime/polyscribe.db")),
         upload_dir=Path(os.getenv("UPLOAD_DIR", "runtime/uploads")),
         max_upload_mb=_int_from_env("MAX_UPLOAD_MB", 200),
         audio_chunk_max_mb=_int_from_env(
             "DIRECT_AUDIO_MAX_MB",
-            _int_from_env("OPENAI_AUDIO_MAX_MB", 24),
+            24,
         ),
         keep_uploads=_bool_from_env("KEEP_UPLOADS", False),
         ffmpeg_segment_seconds=_int_from_env("FFMPEG_SEGMENT_SECONDS", 1200, 60),
         allowed_extensions=_extensions_from_env(),
-        request_timeout_seconds=_int_from_env("OPENAI_TIMEOUT_SECONDS", 180, 10),
+        request_timeout_seconds=_int_from_env("REQUEST_TIMEOUT_SECONDS", 180, 10),
         max_chat_context_chars=_int_from_env("MAX_CHAT_CONTEXT_CHARS", 60000, 2000),
         app_password=os.getenv("APP_PASSWORD", ""),
         secret_key=os.getenv("SECRET_KEY", "change-me-for-production"),

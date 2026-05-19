@@ -227,8 +227,8 @@ async function sendMessage(event) {
   setBusy(true, "Thinking");
   renderMessages([
     ...state.messages,
-    { id: "local-user", role: "user", content },
-    { id: "local-assistant", role: "assistant", content: "Thinking...", pending: true },
+    { id: "pending-user", role: "user", content },
+    { id: "pending-assistant", role: "assistant", content: "Thinking...", pending: true },
   ]);
 
   try {
@@ -266,8 +266,8 @@ async function uploadFile(file) {
   setBusy(true, "Transcribing");
   renderMessages([
     ...state.messages,
-    { id: "local-upload", role: "user", content: `Uploaded ${file.name}` },
-    { id: "local-transcribing", role: "assistant", content: "Transcribing...", pending: true },
+    { id: "pending-upload", role: "user", content: `Uploaded ${file.name}` },
+    { id: "pending-transcribing", role: "assistant", content: "Transcribing...", pending: true },
   ]);
 
   try {

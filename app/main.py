@@ -134,7 +134,8 @@ async def client_config():
     settings = get_settings()
     return {
         "appName": settings.app_name,
-        "aiProvider": settings.ai_provider,
+        "chatProvider": settings.chat_provider,
+        "transcriptionProvider": settings.transcription_provider,
         "maxUploadMb": settings.max_upload_mb,
         "allowedExtensions": sorted(settings.allowed_extensions),
         "authEnabled": auth_enabled(settings),

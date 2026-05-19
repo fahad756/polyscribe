@@ -4,19 +4,18 @@ from app.services.ai import AIService
 
 def test_settings_defaults(monkeypatch):
     monkeypatch.delenv("ALLOWED_EXTENSIONS", raising=False)
-    monkeypatch.delenv("AI_PROVIDER", raising=False)
-    monkeypatch.delenv("LOCAL_WHISPER_MODEL", raising=False)
-    monkeypatch.delenv("OLLAMA_MODEL", raising=False)
+    monkeypatch.delenv("CHAT_PROVIDER", raising=False)
+    monkeypatch.delenv("TRANSCRIPTION_PROVIDER", raising=False)
+    monkeypatch.delenv("GEMINI_MODEL", raising=False)
+    monkeypatch.delenv("GROQ_TRANSCRIPTION_MODEL", raising=False)
     get_settings.cache_clear()
 
     settings = get_settings()
 
-    assert settings.ai_provider == "local"
-    assert settings.local_whisper_model == "base"
-    assert settings.ollama_model == "llama3.2:3b"
+    assert settings.chat_provider == "gemini"
+    assert settings.transcription_provider == "groq"
     assert settings.gemini_model == "gemini-2.5-flash"
-    assert settings.openai_text_model == "gpt-5-mini"
-    assert settings.openai_transcription_model == "gpt-4o-mini-transcribe"
+    assert settings.groq_transcription_model == "whisper-large-v3-turbo"
     assert settings.allowed_extensions == frozenset(DEFAULT_ALLOWED_EXTENSIONS)
 
 
@@ -29,22 +28,22 @@ def test_allowed_extensions_are_normalized(monkeypatch):
     assert settings.allowed_extensions == frozenset({"mp3", "wav", "mp4"})
 
 
-def test_direct_audio_limit_prefers_new_name(monkeypatch):
-    monkeypatch.setenv("OPENAI_AUDIO_MAX_MB", "12")
+def test_direct_audio_limit_uses_new_name(monkeypatch):
     monkeypatch.setenv("DIRECT_AUDIO_MAX_MB", "30")
     get_settings.cache_clear()
 
     settings = get_settings()
 
     assert settings.audio_chunk_max_mb == 30
-    assert settings.openai_audio_max_bytes == settings.audio_chunk_max_bytes
+    assert settings.audio_chunk_max_bytes == 30 * 1024 * 1024
 
 
-def test_supported_ai_providers_can_be_selected(monkeypatch):
-    for provider in ("local", "gemini", "openai"):
-        monkeypatch.setenv("AI_PROVIDER", provider)
-        get_settings.cache_clear()
+def test_configured_services_can_be_constructed(monkeypatch):
+    monkeypatch.setenv("CHAT_PROVIDER", "gemini")
+    monkeypatch.setenv("TRANSCRIPTION_PROVIDER", "groq")
+    get_settings.cache_clear()
 
-        service = AIService(get_settings())
+    service = AIService(get_settings())
 
-        assert service is not None
+    assert service is not None
+
