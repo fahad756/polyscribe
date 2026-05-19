@@ -1,4 +1,5 @@
 from app.config import DEFAULT_ALLOWED_EXTENSIONS, get_settings
+from app.services.ai import AIService
 
 
 def test_settings_defaults(monkeypatch):
@@ -37,3 +38,13 @@ def test_direct_audio_limit_prefers_new_name(monkeypatch):
 
     assert settings.audio_chunk_max_mb == 30
     assert settings.openai_audio_max_bytes == settings.audio_chunk_max_bytes
+
+
+def test_supported_ai_providers_can_be_selected(monkeypatch):
+    for provider in ("local", "gemini", "openai"):
+        monkeypatch.setenv("AI_PROVIDER", provider)
+        get_settings.cache_clear()
+
+        service = AIService(get_settings())
+
+        assert service is not None

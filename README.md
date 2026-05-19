@@ -10,9 +10,21 @@ Python-first web app for GPT-style transcription and translation workflows.
 - Automatic source-language detection when transcribing.
 - Free local prompt/chat translation through Ollama by default.
 - Online Gemini provider for hosted portfolio demos.
+- OpenAI/GPT provider for hosted GPT transcription and chat.
 - Converts/chunks larger videos with ffmpeg before transcription.
 - Optional shared password gate for private deployments.
-- Optional OpenAI fallback if you set `AI_PROVIDER=openai`.
+
+## Provider Options
+
+Set `AI_PROVIDER` to choose the backend:
+
+```env
+AI_PROVIDER=local
+```
+
+- `local`: free local Ollama chat plus `faster-whisper` transcription.
+- `gemini`: online Gemini API for a live hosted portfolio demo.
+- `openai`: OpenAI/GPT provider.
 
 ## Online Portfolio Setup
 
@@ -72,13 +84,7 @@ For better transcription quality, change `LOCAL_WHISPER_MODEL` to `small`, `medi
 
 ## Optional OpenAI Provider
 
-OpenAI is no longer required. To use it anyway:
-
-```powershell
-pip install openai
-```
-
-Then set:
+OpenAI/GPT is still supported. Set:
 
 ```env
 AI_PROVIDER=openai
