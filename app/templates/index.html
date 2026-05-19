@@ -35,35 +35,28 @@
             <strong id="activeChatTitle">New chat</strong>
             <span id="statusText">Ready</span>
           </div>
+          <button class="theme-button" id="themeButton" type="button" aria-label="Toggle dark mode">
+            Dark
+          </button>
         </header>
 
         <section class="messages" id="messageList" aria-live="polite">
           <div class="empty-state" id="emptyState">
-            <h1>{{ app_name }}</h1>
-            <div class="prompt-row">
-              <button type="button" data-prompt="Translate this to English: ">
-                Translate to English
-              </button>
-              <button type="button" data-prompt="Translate this to Urdu: ">
-                Translate to Urdu
-              </button>
-              <button type="button" data-prompt="Clean up this transcript and keep the meaning: ">
-                Clean transcript
-              </button>
+            <div class="empty-signal" aria-hidden="true">
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
             </div>
+            <h1>{{ app_name }}</h1>
+            <p>Audio in. Clean words out. Then ask away.</p>
           </div>
         </section>
 
         <section class="composer-shell" aria-label="Message composer">
           <div class="upload-options">
-            <input
-              id="languageInput"
-              class="small-input"
-              type="text"
-              autocomplete="off"
-              placeholder="Language hint"
-            >
-            <span class="upload-limit">Up to {{ max_upload_mb }} MB</span>
+            <span class="upload-limit">Drop media anywhere or use +. Up to {{ max_upload_mb }} MB.</span>
           </div>
 
           <form class="composer" id="composer">
@@ -89,6 +82,9 @@
 
       <div class="drop-overlay" id="dropOverlay">
         <div>Drop media to transcribe</div>
+      </div>
+      <div class="source-toast" id="sourceToast" role="status" aria-live="polite">
+        No source click, you naughty naught.
       </div>
     </div>
   </body>

@@ -9,6 +9,7 @@ const els = {
   sidebar: document.getElementById("sidebar"),
   menuButton: document.getElementById("menuButton"),
   newChatButton: document.getElementById("newChatButton"),
+  themeButton: document.getElementById("themeButton"),
   chatList: document.getElementById("chatList"),
   activeChatTitle: document.getElementById("activeChatTitle"),
   statusText: document.getElementById("statusText"),
@@ -16,11 +17,11 @@ const els = {
   emptyState: document.getElementById("emptyState"),
   composer: document.getElementById("composer"),
   messageInput: document.getElementById("messageInput"),
-  languageInput: document.getElementById("languageInput"),
   fileInput: document.getElementById("fileInput"),
   attachButton: document.getElementById("attachButton"),
   sendButton: document.getElementById("sendButton"),
   dropOverlay: document.getElementById("dropOverlay"),
+  sourceToast: document.getElementById("sourceToast"),
 };
 
 async function api(path, options = {}) {
@@ -254,14 +255,13 @@ async function uploadFile(file) {
   if (!state.currentChatId) await createChat();
 
   const prompt = els.messageInput.value.trim();
-  const language = els.languageInput.value.trim();
   els.messageInput.value = "";
   resizeTextarea();
 
   const body = new FormData();
   body.append("file", file);
   body.append("prompt", prompt);
-  body.append("language", language);
+  body.append("language", "");
 
   setBusy(true, "Transcribing");
   renderMessages([
@@ -295,6 +295,55 @@ function resizeTextarea() {
   input.style.height = `${Math.min(input.scrollHeight, 180)}px`;
 }
 
+function applyTheme(theme) {
+  const selected = theme === "dark" ? "dark" : "light";
+  document.documentElement.dataset.theme = selected;
+  localStorage.setItem("polyscribe-theme", selected);
+  els.themeButton.textContent = selected === "dark" ? "Light" : "Dark";
+  els.themeButton.setAttribute(
+    "aria-label",
+    selected === "dark" ? "Switch to light mode" : "Switch to dark mode",
+  );
+}
+
+function installThemeToggle() {
+  const stored = localStorage.getItem("polyscribe-theme");
+  const preferred = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  applyTheme(stored || preferred);
+  els.themeButton.addEventListener("click", () => {
+    const current = document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+    applyTheme(current === "dark" ? "light" : "dark");
+  });
+}
+
+function showSourceToast() {
+  els.sourceToast.classList.add("is-visible");
+  clearTimeout(showSourceToast.timeoutId);
+  showSourceToast.timeoutId = setTimeout(() => {
+    els.sourceToast.classList.remove("is-visible");
+  }, 1800);
+}
+
+function installSourceGuard() {
+  window.addEventListener("contextmenu", (event) => {
+    event.preventDefault();
+    showSourceToast();
+  });
+
+  window.addEventListener("keydown", (event) => {
+    const key = event.key.toLowerCase();
+    const blocked =
+      event.key === "F12" ||
+      (event.ctrlKey && event.shiftKey && ["i", "j", "c"].includes(key)) ||
+      (event.ctrlKey && key === "u");
+
+    if (blocked) {
+      event.preventDefault();
+      showSourceToast();
+    }
+  });
+}
+
 function installDragAndDrop() {
   let dragDepth = 0;
 
@@ -326,19 +375,19 @@ function installDragAndDrop() {
 function bindEvents() {
   els.composer.addEventListener("submit", sendMessage);
   els.messageInput.addEventListener("input", resizeTextarea);
+  els.messageInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+      event.preventDefault();
+      els.composer.requestSubmit();
+    }
+  });
   els.attachButton.addEventListener("click", () => els.fileInput.click());
   els.fileInput.addEventListener("change", () => uploadFile(els.fileInput.files[0]));
   els.newChatButton.addEventListener("click", createChat);
   els.menuButton.addEventListener("click", () => els.sidebar.classList.toggle("is-open"));
 
-  document.querySelectorAll("[data-prompt]").forEach((button) => {
-    button.addEventListener("click", () => {
-      els.messageInput.value = button.dataset.prompt || "";
-      resizeTextarea();
-      els.messageInput.focus();
-    });
-  });
-
+  installThemeToggle();
+  installSourceGuard();
   installDragAndDrop();
 }
 
