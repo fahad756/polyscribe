@@ -9,13 +9,26 @@ Python-first web app for GPT-style transcription and translation workflows.
 - Free local transcription with `faster-whisper` by default.
 - Automatic source-language detection when transcribing.
 - Free local prompt/chat translation through Ollama by default.
+- Online Gemini provider for hosted portfolio demos.
 - Converts/chunks larger videos with ffmpeg before transcription.
 - Optional shared password gate for private deployments.
 - Optional OpenAI fallback if you set `AI_PROVIDER=openai`.
 
+## Online Portfolio Setup
+
+Use Gemini when you deploy the app somewhere and want it to work live without running Ollama or Whisper on the server.
+
+```env
+AI_PROVIDER=gemini
+GEMINI_API_KEY=<your-gemini-api-key>
+GEMINI_MODEL=gemini-2.5-flash
+```
+
+Do not commit `.env`. It is already ignored by git. Set `GEMINI_API_KEY` in your hosting provider's private environment variables for deployment.
+
 ## Free Local Setup
 
-The default provider is local and does not need an OpenAI key.
+The local provider does not need an OpenAI or Gemini key.
 
 Install Python dependencies:
 
@@ -97,7 +110,8 @@ Set these at minimum:
 APP_ENV=production
 SECRET_KEY=<long-random-secret>
 APP_PASSWORD=<optional-shared-password>
-AI_PROVIDER=local
+AI_PROVIDER=gemini
+GEMINI_API_KEY=<private-host-env-var>
 DATABASE_PATH=/data/polyscribe.db
 UPLOAD_DIR=/data/uploads
 KEEP_UPLOADS=false
@@ -118,4 +132,3 @@ For a public app, set `APP_PASSWORD` or put the service behind real authenticati
 ```bash
 python -m pytest -q
 ```
-

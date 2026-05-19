@@ -13,6 +13,7 @@ def test_settings_defaults(monkeypatch):
     assert settings.ai_provider == "local"
     assert settings.local_whisper_model == "base"
     assert settings.ollama_model == "llama3.2:3b"
+    assert settings.gemini_model == "gemini-2.5-flash"
     assert settings.openai_text_model == "gpt-5-mini"
     assert settings.openai_transcription_model == "gpt-4o-mini-transcribe"
     assert settings.allowed_extensions == frozenset(DEFAULT_ALLOWED_EXTENSIONS)

@@ -57,11 +57,13 @@ class AIService:
         provider = settings.ai_provider
         if provider in {"local", "free", "ollama"}:
             self._provider: AIProvider = LocalAIProvider(settings)
+        elif provider == "gemini":
+            self._provider = GeminiProvider(settings)
         elif provider in {"openai", "gpt"}:
             self._provider = OpenAIProvider(settings)
         else:
             raise AIServiceError(
-                f"Unsupported AI_PROVIDER '{settings.ai_provider}'. Use 'local' or 'openai'."
+                f"Unsupported AI_PROVIDER '{settings.ai_provider}'. Use 'local', 'gemini', or 'openai'."
             )
 
     def chat(self, messages: list[dict[str, Any]]) -> str:
@@ -272,6 +274,95 @@ class OpenAIProvider:
         return _transcription_text(result).strip()
 
 
+class GeminiProvider:
+    def __init__(self, settings: Settings):
+        self.settings = settings
+        self._client: Any | None = None
+
+    @property
+    def client(self) -> Any:
+        if not self.settings.gemini_api_key:
+            raise AIServiceError("GEMINI_API_KEY is not configured on the server.")
+        if self._client is None:
+            try:
+                from google import genai
+            except ImportError as exc:
+                raise AIServiceError(
+                    "Gemini provider selected, but google-genai is not installed. "
+                    "Install dependencies with 'pip install -r requirements.txt'."
+                ) from exc
+
+            self._client = genai.Client(api_key=self.settings.gemini_api_key)
+        return self._client
+
+    def chat(self, messages: list[dict[str, Any]]) -> str:
+        prompt = (
+            f"{SYSTEM_PROMPT}\n\n"
+            "Continue this conversation. Answer only the latest user request.\n\n"
+            f"{_render_conversation(messages, self.settings.max_chat_context_chars)}"
+        )
+        try:
+            response = self.client.models.generate_content(
+                model=self.settings.gemini_model,
+                contents=prompt,
+            )
+        except Exception as exc:
+            raise AIServiceError(f"Gemini request failed: {exc}") from exc
+
+        text = _generic_response_text(response)
+        if not text:
+            raise AIServiceError("Gemini returned an empty response.")
+        return text
+
+    def transcribe_paths(
+        self,
+        paths: list[Path],
+        prompt: str = "",
+        language: str = "",
+    ) -> TranscriptionResult:
+        transcripts: list[str] = []
+        for index, path in enumerate(paths, start=1):
+            text = self._transcribe_one(path, prompt=prompt, language=language)
+            if len(paths) > 1 and text:
+                transcripts.append(f"Part {index}\n{text}")
+            else:
+                transcripts.append(text)
+
+        text = "\n\n".join(part for part in transcripts if part.strip()).strip()
+        if not text:
+            raise AIServiceError("No speech was detected in the uploaded media.")
+        return TranscriptionResult(text=text, chunk_count=len(paths), source_language=language.strip())
+
+    def _transcribe_one(self, path: Path, prompt: str = "", language: str = "") -> str:
+        language_instruction = (
+            f"The user says the source language may be {language.strip()}. "
+            if language.strip()
+            else "Detect the source language automatically. "
+        )
+        user_prompt = (
+            "Transcribe this audio or video accurately. "
+            f"{language_instruction}"
+            "Return only the transcript text. Preserve paragraph breaks when useful."
+        )
+        if prompt.strip():
+            user_prompt += f"\nContext or user instruction: {prompt.strip()[:2000]}"
+
+        uploaded_file = None
+        try:
+            uploaded_file = self.client.files.upload(file=str(path))
+            response = self.client.models.generate_content(
+                model=self.settings.gemini_model,
+                contents=[user_prompt, uploaded_file],
+            )
+        except Exception as exc:
+            raise AIServiceError(f"Gemini transcription failed: {exc}") from exc
+        finally:
+            if uploaded_file is not None:
+                _delete_gemini_file(self.client, uploaded_file)
+
+        return _generic_response_text(response).strip()
+
+
 @lru_cache(maxsize=3)
 def _local_whisper_model(model_name: str, device: str, compute_type: str) -> Any:
     try:
@@ -355,6 +446,23 @@ def _response_output_text(response: Any) -> str:
             if isinstance(text, str):
                 text_parts.append(text)
     return "\n".join(text_parts).strip()
+
+
+def _generic_response_text(response: Any) -> str:
+    text = getattr(response, "text", None)
+    if isinstance(text, str) and text.strip():
+        return text.strip()
+    return _response_output_text(response)
+
+
+def _delete_gemini_file(client: Any, uploaded_file: Any) -> None:
+    file_name = getattr(uploaded_file, "name", "") or ""
+    if not file_name:
+        return
+    try:
+        client.files.delete(name=file_name)
+    except Exception:
+        pass
 
 
 def _transcription_text(result: Any) -> str:

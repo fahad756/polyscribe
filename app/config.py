@@ -71,6 +71,8 @@ class Settings:
     local_whisper_compute_type: str
     ollama_base_url: str
     ollama_model: str
+    gemini_api_key: str
+    gemini_model: str
     openai_api_key: str
     openai_text_model: str
     openai_transcription_model: str
@@ -113,6 +115,8 @@ def get_settings() -> Settings:
         local_whisper_compute_type=os.getenv("LOCAL_WHISPER_COMPUTE_TYPE", "int8").strip(),
         ollama_base_url=os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/"),
         ollama_model=os.getenv("OLLAMA_MODEL", "llama3.2:3b").strip(),
+        gemini_api_key=os.getenv("GEMINI_API_KEY", "").strip(),
+        gemini_model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip(),
         openai_api_key=os.getenv("OPENAI_API_KEY", ""),
         openai_text_model=os.getenv("OPENAI_TEXT_MODEL", "gpt-5-mini"),
         openai_transcription_model=os.getenv(
