@@ -1,0 +1,14 @@
+services:
+  polyscribe:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - polyscribe-data:/data
+    restart: unless-stopped
+
+volumes:
+  polyscribe-data:
+

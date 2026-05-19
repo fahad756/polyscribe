@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ app_name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
+    <script defer src="{{ url_for('static', path='/app.js') }}"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar">
+        <div class="brand">
+          <div class="brand-mark">P</div>
+          <div>
+            <strong>{{ app_name }}</strong>
+            <span>Transcribe + translate</span>
+          </div>
+        </div>
+
+        <button class="new-chat-button" id="newChatButton" type="button">
+          <span aria-hidden="true">+</span>
+          New chat
+        </button>
+
+        <div class="chat-list" id="chatList" aria-label="Chats"></div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <button class="menu-button" id="menuButton" type="button" aria-label="Open chats">
+            <span></span><span></span><span></span>
+          </button>
+          <div>
+            <strong id="activeChatTitle">New chat</strong>
+            <span id="statusText">Ready</span>
+          </div>
+        </header>
+
+        <section class="messages" id="messageList" aria-live="polite">
+          <div class="empty-state" id="emptyState">
+            <h1>{{ app_name }}</h1>
+            <div class="prompt-row">
+              <button type="button" data-prompt="Translate this to English: ">
+                Translate to English
+              </button>
+              <button type="button" data-prompt="Translate this to Urdu: ">
+                Translate to Urdu
+              </button>
+              <button type="button" data-prompt="Clean up this transcript and keep the meaning: ">
+                Clean transcript
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section class="composer-shell" aria-label="Message composer">
+          <div class="upload-options">
+            <input
+              id="languageInput"
+              class="small-input"
+              type="text"
+              autocomplete="off"
+              placeholder="Source language"
+            >
+            <span class="upload-limit">Up to {{ max_upload_mb }} MB</span>
+          </div>
+
+          <form class="composer" id="composer">
+            <input
+              id="fileInput"
+              type="file"
+              hidden
+              accept="audio/*,video/mp4,video/webm,.mp3,.mp4,.mpeg,.mpga,.m4a,.wav,.webm,.mov,.mkv,.aac,.ogg,.flac"
+            >
+            <button class="tool-button" id="attachButton" type="button" aria-label="Upload media" title="Upload media">
+              +
+            </button>
+            <textarea
+              id="messageInput"
+              rows="1"
+              maxlength="30000"
+              placeholder="Message {{ app_name }}"
+            ></textarea>
+            <button class="send-button" id="sendButton" type="submit">Send</button>
+          </form>
+        </section>
+      </main>
+
+      <div class="drop-overlay" id="dropOverlay">
+        <div>Drop media to transcribe</div>
+      </div>
+    </div>
+  </body>
+</html>
+

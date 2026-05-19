@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ app_name }} Login</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
+  </head>
+  <body class="login-page">
+    <main class="login-panel">
+      <div class="brand login-brand">
+        <div class="brand-mark">P</div>
+        <div>
+          <strong>{{ app_name }}</strong>
+          <span>Private access</span>
+        </div>
+      </div>
+      <form method="post" action="/login" class="login-form">
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autofocus>
+        {% if error %}
+        <p class="form-error">{{ error }}</p>
+        {% endif %}
+        <button class="send-button" type="submit">Continue</button>
+      </form>
+    </main>
+  </body>
+</html>
+
