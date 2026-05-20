@@ -32,6 +32,8 @@ const els = {
   nameInput: document.getElementById("nameInput"),
 };
 
+const titleAnimationTimers = new Map();
+
 async function api(path, options = {}) {
   const response = await fetch(path, {
     ...options,
@@ -79,15 +81,12 @@ function currentChat() {
   return state.chats.find((chat) => chat.id === state.currentChatId);
 }
 
-function currentChatIsEmpty() {
-  return Boolean(state.currentChatId && currentChat() && state.messages.length === 0);
-}
-
 function renderChats() {
   els.chatList.textContent = "";
   for (const chat of state.chats) {
     const item = document.createElement("div");
     item.className = `chat-item${chat.id === state.currentChatId ? " is-active" : ""}`;
+    item.dataset.chatId = chat.id;
 
     const open = document.createElement("button");
     open.type = "button";
@@ -115,6 +114,35 @@ function renderChats() {
     item.append(open, remove);
     els.chatList.appendChild(item);
   }
+}
+
+function animateChatTitle(chatId, title) {
+  const fullTitle = (title || "").trim();
+  if (!chatId || !fullTitle || fullTitle === "New chat") return;
+
+  const existingTimers = titleAnimationTimers.get(chatId) || [];
+  for (const timerId of existingTimers) clearTimeout(timerId);
+
+  const titleElement = els.chatList.querySelector(`[data-chat-id="${chatId}"] .chat-title`);
+  if (!titleElement) return;
+
+  const timers = [];
+  titleAnimationTimers.set(chatId, timers);
+  titleElement.textContent = "";
+  titleElement.classList.add("is-typing");
+
+  let index = 0;
+  const step = () => {
+    index += 1;
+    titleElement.textContent = fullTitle.slice(0, index);
+    if (index < fullTitle.length) {
+      timers.push(setTimeout(step, 24));
+      return;
+    }
+    titleElement.classList.remove("is-typing");
+    titleAnimationTimers.delete(chatId);
+  };
+  step();
 }
 
 function renderMessages(messages = state.messages) {
@@ -244,31 +272,32 @@ async function refreshChats() {
   updateActiveTitle();
 }
 
-async function createChat() {
+function openDraftChat({ focus = true } = {}) {
   if (state.busy || state.creatingChat) return currentChat();
-  if (currentChatIsEmpty()) {
-    renderChats();
-    updateActiveTitle();
-    renderMessages();
-    els.messageInput.focus();
-    return currentChat();
-  }
+  state.currentChatId = null;
+  state.messages = [];
+  els.messageInput.value = "";
+  resizeTextarea();
+  clearAttachment();
+  els.sidebar.classList.remove("is-open");
+  renderChats();
+  updateActiveTitle();
+  renderMessages();
+  if (focus) els.messageInput.focus();
+  return null;
+}
 
+async function createChat() {
+  if (state.currentChatId) return currentChat() || { id: state.currentChatId };
+  if (state.busy || state.creatingChat) return null;
   state.creatingChat = true;
   updateControls();
   if (!state.busy) els.statusText.textContent = "Starting chat";
 
   try {
-    const data = await api("/api/chats", {
-      method: "POST",
-      body: JSON.stringify({ current_chat_id: state.currentChatId }),
-    });
+    const data = await api("/api/chats", { method: "POST" });
     if (!data) return null;
-    updateChatInList(data.chat);
     state.currentChatId = data.chat.id;
-    state.messages = [];
-    renderChats();
-    renderMessages();
     updateActiveTitle();
     return data.chat;
   } finally {
@@ -301,7 +330,7 @@ async function deleteChat(chatId) {
     if (state.chats.length) {
       await selectChat(state.chats[0].id);
     } else {
-      await createChat();
+      openDraftChat({ focus: false });
     }
   }
   renderChats();
@@ -309,12 +338,15 @@ async function deleteChat(chatId) {
 
 function updateChatInList(chat) {
   const index = state.chats.findIndex((item) => item.id === chat.id);
+  const previousTitle = index >= 0 ? state.chats[index].title || "" : "";
+  const nextTitle = chat.title || "New chat";
   if (index >= 0) {
     state.chats[index] = chat;
   } else {
     state.chats.unshift(chat);
   }
   state.chats.sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)));
+  return nextTitle !== "New chat" && previousTitle !== nextTitle;
 }
 
 function showError(error) {
@@ -326,9 +358,24 @@ function showError(error) {
   renderMessages([...state.messages, message]);
 }
 
+async function syncCurrentChat() {
+  if (!state.currentChatId) return;
+  try {
+    const data = await api(`/api/chats/${state.currentChatId}`);
+    if (!data) return;
+    state.messages = data.messages;
+    const shouldAnimateTitle = updateChatInList(data.chat);
+    renderChats();
+    if (shouldAnimateTitle) animateChatTitle(data.chat.id, data.chat.title);
+    updateActiveTitle();
+  } catch {
+    // Keep the visible error path available even if the refresh also fails.
+  }
+}
+
 async function startNewChat() {
   try {
-    await createChat();
+    openDraftChat();
   } catch (error) {
     showError(error);
   }
@@ -363,11 +410,13 @@ async function sendMessage(event) {
     });
     if (!data) return;
     state.messages = data.messages;
-    updateChatInList(data.chat);
+    const shouldAnimateTitle = updateChatInList(data.chat);
     renderChats();
+    if (shouldAnimateTitle) animateChatTitle(data.chat.id, data.chat.title);
     updateActiveTitle();
     renderMessages();
   } catch (error) {
+    await syncCurrentChat();
     showError(error);
   } finally {
     setBusy(false);
@@ -405,11 +454,13 @@ async function uploadFile(file, prompt = "") {
     });
     if (!data) return;
     state.messages = data.messages;
-    updateChatInList(data.chat);
+    const shouldAnimateTitle = updateChatInList(data.chat);
     renderChats();
+    if (shouldAnimateTitle) animateChatTitle(data.chat.id, data.chat.title);
     updateActiveTitle();
     renderMessages();
   } catch (error) {
+    await syncCurrentChat();
     showError(error);
   } finally {
     setBusy(false);
@@ -560,7 +611,7 @@ async function boot() {
   if (state.chats.length) {
     await selectChat(state.chats[0].id);
   } else {
-    await createChat();
+    openDraftChat({ focus: false });
   }
 }
 

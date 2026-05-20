@@ -186,6 +186,27 @@ button {
   white-space: nowrap;
 }
 
+.chat-title.is-typing {
+  text-overflow: clip;
+}
+
+.chat-title.is-typing::after {
+  content: "";
+  display: inline-block;
+  width: 1px;
+  height: 0.95em;
+  margin-left: 2px;
+  background: currentColor;
+  vertical-align: -0.12em;
+  animation: typing-caret 700ms steps(2, end) infinite;
+}
+
+@keyframes typing-caret {
+  50% {
+    opacity: 0;
+  }
+}
+
 .delete-chat {
   width: 28px;
   height: 28px;

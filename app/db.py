@@ -88,9 +88,14 @@ def list_chats(limit: int = 100) -> list[dict[str, Any]]:
     with _connect() as connection:
         rows = connection.execute(
             """
-            SELECT id, title, created_at, updated_at
-            FROM chats
-            ORDER BY updated_at DESC
+            SELECT c.id, c.title, c.created_at, c.updated_at
+            FROM chats c
+            WHERE EXISTS (
+                SELECT 1
+                FROM messages m
+                WHERE m.chat_id = c.id
+            )
+            ORDER BY c.updated_at DESC
             LIMIT ?
             """,
             (limit,),
@@ -178,4 +183,3 @@ def add_message(
     if message is None:
         raise RuntimeError("Message creation failed")
     return message
-

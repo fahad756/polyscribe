@@ -4,7 +4,7 @@ Python-first web app for chat-style transcription and translation workflows.
 
 ## What It Does
 
-- Chat interface with persisted chat sessions.
+- Chat interface with draft-first sessions that are saved after the first prompt.
 - Drag-drop or click upload for audio/video files.
 - Audio/video files stage as composer attachments before sending.
 - Transcribes uploads with Groq's online speech-to-text API.
@@ -91,9 +91,3 @@ Open `http://localhost:8000`.
 - ffmpeg is required for large MP4/video extraction and non-direct formats like `mov`, `mkv`, `flac`, or `ogg`.
 - Docker installs ffmpeg automatically.
 - Local non-Docker runs need ffmpeg on `PATH` for large/video conversion.
-
-## Verification
-
-```bash
-python -m pytest -q
-```
