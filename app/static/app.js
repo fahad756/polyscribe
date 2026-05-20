@@ -372,10 +372,8 @@ function applyTheme(theme) {
   const selected = theme === "dark" ? "dark" : "light";
   document.documentElement.dataset.theme = selected;
   localStorage.setItem("polyscribe-theme", selected);
-  els.themeButton.innerHTML =
-    selected === "dark"
-      ? '<span class="theme-icon" aria-hidden="true">☀</span><span class="theme-label">Light</span>'
-      : '<span class="theme-icon" aria-hidden="true">☾</span><span class="theme-label">Dark</span>';
+  els.themeButton.dataset.mode = selected;
+  els.themeButton.setAttribute("aria-pressed", selected === "dark" ? "true" : "false");
   els.themeButton.setAttribute(
     "aria-label",
     selected === "dark" ? "Switch to light mode" : "Switch to dark mode",

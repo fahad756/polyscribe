@@ -259,18 +259,20 @@ button {
 
 .theme-button {
   margin-left: auto;
-  width: 40px;
-  min-width: 40px;
-  height: 36px;
-  border-radius: 8px;
+  width: 106px;
+  min-width: 106px;
+  height: 38px;
+  border-radius: 999px;
   border: 1px solid var(--line);
   background: var(--panel-strong);
   color: var(--text);
   display: grid;
-  place-items: center;
+  grid-template-columns: 22px 1fr 22px;
+  align-items: center;
+  gap: 6px;
   font-weight: 800;
   line-height: 1;
-  padding: 0;
+  padding: 4px 7px;
   transition: background 150ms ease, border-color 150ms ease, transform 150ms ease;
 }
 
@@ -280,14 +282,69 @@ button {
   transform: translateY(-1px);
 }
 
-.theme-icon {
-  display: block;
-  font-size: 1.05rem;
+.theme-symbol {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 0.96rem;
   line-height: 1;
+  transition: color 150ms ease, background 150ms ease, opacity 150ms ease;
 }
 
-.theme-label {
-  display: none;
+.theme-sun {
+  color: #cc8a00;
+  background: rgba(240, 192, 74, 0.2);
+}
+
+.theme-moon {
+  color: var(--muted);
+}
+
+.theme-track {
+  position: relative;
+  width: 46px;
+  height: 24px;
+  border-radius: 999px;
+  background: #d9dde2;
+  box-shadow: inset 0 1px 3px rgba(20, 22, 28, 0.2);
+}
+
+.theme-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(20, 22, 28, 0.28);
+  transition: transform 180ms ease, background 180ms ease;
+}
+
+[data-theme="dark"] .theme-button {
+  background: #20242a;
+}
+
+[data-theme="dark"] .theme-sun {
+  color: var(--muted);
+  background: transparent;
+  opacity: 0.72;
+}
+
+[data-theme="dark"] .theme-moon {
+  color: #7c8cff;
+  background: rgba(124, 140, 255, 0.16);
+}
+
+[data-theme="dark"] .theme-track {
+  background: #363c46;
+}
+
+[data-theme="dark"] .theme-thumb {
+  transform: translateX(22px);
+  background: #eef1ff;
 }
 
 .messages {
@@ -792,9 +849,31 @@ button {
   }
 
   .theme-button {
-    width: 38px;
-    min-width: 38px;
-    height: 34px;
+    width: 98px;
+    min-width: 98px;
+    height: 36px;
+    gap: 5px;
+    padding: 4px 6px;
+  }
+
+  .theme-symbol {
+    width: 20px;
+    height: 20px;
+    font-size: 0.9rem;
+  }
+
+  .theme-track {
+    width: 42px;
+    height: 22px;
+  }
+
+  .theme-thumb {
+    width: 16px;
+    height: 16px;
+  }
+
+  [data-theme="dark"] .theme-thumb {
+    transform: translateX(20px);
   }
 
   .messages {
