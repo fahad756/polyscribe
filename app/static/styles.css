@@ -50,6 +50,7 @@
 body {
   margin: 0;
   min-height: 100vh;
+  min-height: 100svh;
   color: var(--text);
   background:
     linear-gradient(135deg, var(--bg-a), transparent 34%),
@@ -72,6 +73,7 @@ button {
   display: grid;
   grid-template-columns: 268px minmax(0, 1fr);
   min-height: 100vh;
+  min-height: 100svh;
 }
 
 .sidebar {
@@ -82,6 +84,7 @@ button {
   gap: 14px;
   padding: 16px;
   min-height: 100vh;
+  min-height: 100svh;
 }
 
 .brand {
@@ -223,6 +226,7 @@ button {
 .workspace {
   min-width: 0;
   min-height: 100vh;
+  min-height: 100svh;
   display: grid;
   grid-template-rows: auto 1fr auto;
   background: rgba(255, 255, 255, 0.36);
@@ -506,7 +510,7 @@ button {
 .composer-shell {
   border-top: 1px solid var(--line);
   background: color-mix(in srgb, var(--bg) 92%, transparent);
-  padding: 12px min(5vw, 56px) 16px;
+  padding: 12px min(5vw, 56px) max(16px, env(safe-area-inset-bottom));
   backdrop-filter: blur(14px);
 }
 
@@ -635,7 +639,7 @@ button {
   left: 0;
   bottom: calc(100% + 10px);
   z-index: 12;
-  width: 224px;
+  width: min(224px, calc(100vw - 24px));
   display: grid;
   gap: 4px;
   border: 1px solid var(--line);
@@ -976,15 +980,29 @@ button {
   }
 
   .composer-shell {
-    padding: 12px 10px 14px;
+    padding: 10px max(10px, env(safe-area-inset-left)) max(14px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-right));
   }
 
   .composer {
-    grid-template-columns: 40px minmax(0, 1fr) auto;
+    min-height: 52px;
+    grid-template-columns: 38px minmax(0, 1fr) auto;
     gap: 6px;
+    padding: 7px;
+  }
+
+  .composer-tools,
+  .tool-button {
+    width: 36px;
+    height: 36px;
+  }
+
+  .attach-menu {
+    bottom: calc(100% + 8px);
+    width: min(224px, calc(100vw - 20px));
   }
 
   .send-button {
+    min-height: 36px;
     padding: 0 12px;
   }
 
@@ -1004,9 +1022,60 @@ button {
     grid-template-columns: 32px minmax(0, 1fr) 30px;
   }
 
+  .attachment-chip.is-recording {
+    grid-template-columns: 32px minmax(0, 1fr) auto;
+  }
+
   .source-toast {
     right: 12px;
     bottom: 12px;
     max-width: calc(100vw - 24px);
+  }
+}
+
+@media (max-width: 430px) {
+  .topbar {
+    gap: 8px;
+    padding: 10px 10px;
+  }
+
+  .topbar strong,
+  .topbar span {
+    max-width: calc(100vw - 168px);
+  }
+
+  .theme-button {
+    width: 68px;
+    min-width: 68px;
+  }
+
+  [data-theme="dark"] .theme-thumb {
+    transform: translateX(32px);
+  }
+
+  .upload-options {
+    justify-content: center;
+  }
+
+  .upload-limit {
+    max-width: 100%;
+    text-align: center;
+  }
+
+  .composer {
+    grid-template-columns: 36px minmax(0, 1fr) minmax(48px, auto);
+  }
+
+  .composer textarea {
+    font-size: 1rem;
+  }
+
+  .send-button {
+    padding: 0 10px;
+  }
+
+  .welcome-card,
+  .login-panel {
+    padding: 22px;
   }
 }
