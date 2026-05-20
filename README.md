@@ -8,7 +8,6 @@ Python-first web app for chat-style transcription and translation workflows.
 - Drag-drop or click upload for audio/video files.
 - Browser microphone recording that stages captured audio as an attachment.
 - Audio/video files stage as composer attachments before sending.
-- SEO-friendly About section with portfolio and LinkedIn links.
 - Transcribes uploads with Groq's online speech-to-text API.
 - Uses Gemini only for text chat and translation after the transcript exists.
 - Retries temporary Gemini capacity errors and can fall back to a lighter model.
@@ -80,7 +79,7 @@ UPLOAD_DIR=/data/uploads
 KEEP_UPLOADS=false
 ```
 
-For a public portfolio demo, set `APP_PASSWORD` or add platform-level rate limits. Free API limits can still be exhausted by public traffic.
+For a public demo, set `APP_PASSWORD` or add platform-level rate limits. Free API limits can still be exhausted by public traffic.
 
 ## Docker
 

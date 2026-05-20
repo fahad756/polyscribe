@@ -4,13 +4,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="description" content="{{ app_name }} is a mobile-friendly transcription and translation assistant for audio, video, and microphone recordings. Upload or record media, get a transcript first, then translate, summarize, or clean it in chat.">
-    <meta name="author" content="Fahad Waseem">
     <meta property="og:title" content="{{ app_name }} - Audio Transcription and Translation">
-    <meta property="og:description" content="Chat-style audio and video transcription, translation, summaries, and cleanup by Fahad Waseem.">
+    <meta property="og:description" content="Chat-style audio and video transcription, translation, summaries, and cleanup.">
     <meta property="og:type" content="website">
     <meta name="twitter:card" content="summary">
-    <link rel="me" href="https://portfolio.fahadd.workers.dev/">
-    <link rel="me" href="https://www.linkedin.com/in/fahad-waseem/">
     <title>{{ app_name }}</title>
     <link rel="icon" href="{{ url_for('static', path='/favicon.svg') }}" type="image/svg+xml">
     <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
@@ -22,13 +19,7 @@
         "name": {{ app_name|tojson }},
         "applicationCategory": "ProductivityApplication",
         "operatingSystem": "Web",
-        "description": "A mobile-friendly transcription and translation assistant for uploaded audio, video, and microphone recordings.",
-        "creator": {
-          "@type": "Person",
-          "name": "Fahad Waseem",
-          "url": "https://portfolio.fahadd.workers.dev/",
-          "sameAs": ["https://www.linkedin.com/in/fahad-waseem/"]
-        }
+        "description": "A mobile-friendly transcription and translation assistant for uploaded audio, video, and microphone recordings."
       }
     </script>
   </head>
@@ -49,15 +40,6 @@
         </button>
 
         <div class="chat-list" id="chatList" aria-label="Chats"></div>
-
-        <section class="about-panel" id="about" aria-labelledby="aboutTitle">
-          <h2 id="aboutTitle">About {{ app_name }}</h2>
-          <p>{{ app_name }} turns uploaded audio, video, and microphone recordings into transcripts first, then helps translate, summarize, clean, or explain the result in chat.</p>
-          <div class="about-links" aria-label="Creator links">
-            <a href="https://portfolio.fahadd.workers.dev/" target="_blank" rel="noopener noreferrer">Portfolio</a>
-            <a href="https://www.linkedin.com/in/fahad-waseem/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
-          </div>
-        </section>
       </aside>
 
       <main class="workspace">
