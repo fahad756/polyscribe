@@ -27,6 +27,10 @@ class ChatMessageIn(BaseModel):
     content: str = Field(min_length=1, max_length=30000)
 
 
+class ChatCreateIn(BaseModel):
+    current_chat_id: str | None = Field(default=None, max_length=64)
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     settings = get_settings()
@@ -148,7 +152,11 @@ async def api_list_chats():
 
 
 @app.post("/api/chats")
-async def api_create_chat():
+async def api_create_chat(payload: ChatCreateIn | None = None):
+    if payload and payload.current_chat_id:
+        chat = db.get_chat(payload.current_chat_id)
+        if chat is not None and not db.list_messages(payload.current_chat_id):
+            return {"chat": chat}
     return {"chat": db.create_chat()}
 
 

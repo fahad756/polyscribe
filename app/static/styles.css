@@ -400,47 +400,6 @@ button {
   box-shadow: var(--shadow);
 }
 
-.empty-signal {
-  width: min(320px, 72vw);
-  height: 78px;
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  align-items: end;
-  gap: 9px;
-  padding: 15px;
-  border-radius: 8px;
-  border: 1px solid var(--line);
-  background: color-mix(in srgb, var(--panel) 88%, transparent);
-  box-shadow: var(--shadow);
-}
-
-.empty-signal span {
-  display: block;
-  min-height: 20px;
-  border-radius: 7px 7px 3px 3px;
-  background: linear-gradient(180deg, var(--gold) 0%, var(--accent) 100%);
-}
-
-.empty-signal span:nth-child(1) {
-  height: 28px;
-}
-
-.empty-signal span:nth-child(2) {
-  height: 48px;
-}
-
-.empty-signal span:nth-child(3) {
-  height: 36px;
-}
-
-.empty-signal span:nth-child(4) {
-  height: 56px;
-}
-
-.empty-signal span:nth-child(5) {
-  height: 25px;
-}
-
 .message {
   display: flex;
   gap: 10px;
@@ -658,7 +617,10 @@ button {
 }
 
 .send-button:disabled,
-.tool-button:disabled {
+.tool-button:disabled,
+.new-chat-button:disabled,
+.chat-open:disabled,
+.delete-chat:disabled {
   cursor: not-allowed;
   opacity: 0.55;
 }
@@ -885,12 +847,6 @@ button {
 
   .empty-state {
     gap: 14px;
-  }
-
-  .empty-signal {
-    height: 82px;
-    gap: 8px;
-    padding: 16px;
   }
 
   .composer-shell {

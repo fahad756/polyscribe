@@ -3,6 +3,7 @@ const state = {
   currentChatId: null,
   messages: [],
   busy: false,
+  creatingChat: false,
   selectedFile: null,
 };
 
@@ -55,8 +56,17 @@ async function api(path, options = {}) {
 function setBusy(value, label = "Ready") {
   state.busy = value;
   els.statusText.textContent = label;
-  els.sendButton.disabled = value;
-  els.attachButton.disabled = value;
+  updateControls();
+}
+
+function updateControls() {
+  const locked = state.busy || state.creatingChat;
+  els.sendButton.disabled = locked;
+  els.attachButton.disabled = locked;
+  els.newChatButton.disabled = locked;
+  for (const button of document.querySelectorAll(".chat-open, .delete-chat")) {
+    button.disabled = locked;
+  }
 }
 
 function scrollToBottom() {
@@ -69,6 +79,10 @@ function currentChat() {
   return state.chats.find((chat) => chat.id === state.currentChatId);
 }
 
+function currentChatIsEmpty() {
+  return Boolean(state.currentChatId && currentChat() && state.messages.length === 0);
+}
+
 function renderChats() {
   els.chatList.textContent = "";
   for (const chat of state.chats) {
@@ -78,6 +92,7 @@ function renderChats() {
     const open = document.createElement("button");
     open.type = "button";
     open.className = "chat-open";
+    open.disabled = state.busy || state.creatingChat;
     open.addEventListener("click", () => selectChat(chat.id));
 
     const title = document.createElement("span");
@@ -88,6 +103,7 @@ function renderChats() {
     const remove = document.createElement("button");
     remove.type = "button";
     remove.className = "delete-chat";
+    remove.disabled = state.busy || state.creatingChat;
     remove.textContent = "x";
     remove.title = "Delete chat";
     remove.setAttribute("aria-label", "Delete chat");
@@ -229,17 +245,41 @@ async function refreshChats() {
 }
 
 async function createChat() {
-  const data = await api("/api/chats", { method: "POST" });
-  if (!data) return;
-  state.chats = [data.chat, ...state.chats];
-  state.currentChatId = data.chat.id;
-  state.messages = [];
-  renderChats();
-  renderMessages();
-  updateActiveTitle();
+  if (state.busy || state.creatingChat) return currentChat();
+  if (currentChatIsEmpty()) {
+    renderChats();
+    updateActiveTitle();
+    renderMessages();
+    els.messageInput.focus();
+    return currentChat();
+  }
+
+  state.creatingChat = true;
+  updateControls();
+  if (!state.busy) els.statusText.textContent = "Starting chat";
+
+  try {
+    const data = await api("/api/chats", {
+      method: "POST",
+      body: JSON.stringify({ current_chat_id: state.currentChatId }),
+    });
+    if (!data) return null;
+    updateChatInList(data.chat);
+    state.currentChatId = data.chat.id;
+    state.messages = [];
+    renderChats();
+    renderMessages();
+    updateActiveTitle();
+    return data.chat;
+  } finally {
+    state.creatingChat = false;
+    if (!state.busy) els.statusText.textContent = "Ready";
+    updateControls();
+  }
 }
 
 async function selectChat(chatId) {
+  if (state.busy || state.creatingChat || chatId === state.currentChatId) return;
   state.currentChatId = chatId;
   els.sidebar.classList.remove("is-open");
   renderChats();
@@ -254,6 +294,7 @@ async function selectChat(chatId) {
 }
 
 async function deleteChat(chatId) {
+  if (state.busy || state.creatingChat) return;
   await api(`/api/chats/${chatId}`, { method: "DELETE" });
   state.chats = state.chats.filter((chat) => chat.id !== chatId);
   if (state.currentChatId === chatId) {
@@ -285,6 +326,14 @@ function showError(error) {
   renderMessages([...state.messages, message]);
 }
 
+async function startNewChat() {
+  try {
+    await createChat();
+  } catch (error) {
+    showError(error);
+  }
+}
+
 async function sendMessage(event) {
   event.preventDefault();
   const content = els.messageInput.value.trim();
@@ -293,7 +342,10 @@ async function sendMessage(event) {
     await uploadFile(state.selectedFile, content);
     return;
   }
-  if (!state.currentChatId) await createChat();
+  if (!state.currentChatId) {
+    const chat = await createChat();
+    if (!chat) return;
+  }
 
   els.messageInput.value = "";
   resizeTextarea();
@@ -324,7 +376,10 @@ async function sendMessage(event) {
 
 async function uploadFile(file, prompt = "") {
   if (!file || state.busy) return;
-  if (!state.currentChatId) await createChat();
+  if (!state.currentChatId) {
+    const chat = await createChat();
+    if (!chat) return;
+  }
 
   els.messageInput.value = "";
   resizeTextarea();
@@ -490,7 +545,7 @@ function bindEvents() {
   });
   els.attachButton.addEventListener("click", () => els.fileInput.click());
   els.fileInput.addEventListener("change", () => stageFile(els.fileInput.files[0]));
-  els.newChatButton.addEventListener("click", createChat);
+  els.newChatButton.addEventListener("click", startNewChat);
   els.menuButton.addEventListener("click", () => els.sidebar.classList.toggle("is-open"));
 
   installWelcomeFlow();
