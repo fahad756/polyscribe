@@ -73,9 +73,27 @@
               hidden
               accept="audio/*,video/mp4,video/webm,.mp3,.mp4,.mpeg,.mpga,.m4a,.wav,.webm,.mov,.mkv,.aac,.ogg,.flac"
             >
-            <button class="tool-button" id="attachButton" type="button" aria-label="Upload media" title="Upload media">
-              +
-            </button>
+            <div class="composer-tools" id="composerTools">
+              <button class="tool-button" id="attachButton" type="button" aria-label="Add media" aria-haspopup="menu" aria-expanded="false">
+                +
+              </button>
+              <div class="attach-menu" id="attachMenu" role="menu" hidden>
+                <button class="attach-menu-item" id="uploadOption" type="button" role="menuitem">
+                  <span class="attach-menu-icon" aria-hidden="true">U</span>
+                  <span>
+                    <strong>Upload file</strong>
+                    <small>Audio or video</small>
+                  </span>
+                </button>
+                <button class="attach-menu-item" id="recordOption" type="button" role="menuitem">
+                  <span class="attach-menu-icon record-dot" aria-hidden="true"></span>
+                  <span>
+                    <strong id="recordOptionTitle">Listen</strong>
+                    <small id="recordOptionMeta">Record from microphone</small>
+                  </span>
+                </button>
+              </div>
+            </div>
             <textarea
               id="messageInput"
               rows="1"

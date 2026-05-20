@@ -5,6 +5,14 @@ const state = {
   busy: false,
   creatingChat: false,
   selectedFile: null,
+  selectedFileMeta: null,
+  recording: false,
+  recordingChunks: [],
+  recordingMimeType: "",
+  recordingStartedAt: 0,
+  recordingTimerId: null,
+  recordingStream: null,
+  mediaRecorder: null,
 };
 
 const els = {
@@ -23,7 +31,13 @@ const els = {
   messageInput: document.getElementById("messageInput"),
   fileInput: document.getElementById("fileInput"),
   attachmentRow: document.getElementById("attachmentRow"),
+  composerTools: document.getElementById("composerTools"),
   attachButton: document.getElementById("attachButton"),
+  attachMenu: document.getElementById("attachMenu"),
+  uploadOption: document.getElementById("uploadOption"),
+  recordOption: document.getElementById("recordOption"),
+  recordOptionTitle: document.getElementById("recordOptionTitle"),
+  recordOptionMeta: document.getElementById("recordOptionMeta"),
   sendButton: document.getElementById("sendButton"),
   dropOverlay: document.getElementById("dropOverlay"),
   sourceToast: document.getElementById("sourceToast"),
@@ -63,12 +77,15 @@ function setBusy(value, label = "Ready") {
 
 function updateControls() {
   const locked = state.busy || state.creatingChat;
-  els.sendButton.disabled = locked;
+  els.sendButton.disabled = locked || state.recording;
   els.attachButton.disabled = locked;
-  els.newChatButton.disabled = locked;
+  els.uploadOption.disabled = locked || state.recording;
+  els.recordOption.disabled = locked && !state.recording;
+  els.newChatButton.disabled = locked || state.recording;
   for (const button of document.querySelectorAll(".chat-open, .delete-chat")) {
-    button.disabled = locked;
+    button.disabled = locked || state.recording;
   }
+  updateRecordOption();
 }
 
 function scrollToBottom() {
@@ -200,6 +217,37 @@ function renderMessages(messages = state.messages) {
 
 function renderAttachment() {
   els.attachmentRow.textContent = "";
+  if (state.recording) {
+    const chip = document.createElement("div");
+    chip.className = "attachment-chip is-recording";
+
+    const icon = document.createElement("span");
+    icon.className = "attachment-icon recording-dot";
+    icon.textContent = "";
+
+    const detail = document.createElement("div");
+    detail.className = "attachment-detail";
+
+    const name = document.createElement("strong");
+    name.textContent = "Listening...";
+
+    const meta = document.createElement("span");
+    meta.textContent = `${formatDuration(Date.now() - state.recordingStartedAt)} recorded`;
+
+    const stop = document.createElement("button");
+    stop.type = "button";
+    stop.className = "attachment-remove stop-recording";
+    stop.textContent = "Stop";
+    stop.setAttribute("aria-label", "Stop listening");
+    stop.addEventListener("click", stopRecording);
+
+    detail.append(name, meta);
+    chip.append(icon, detail, stop);
+    els.attachmentRow.appendChild(chip);
+    els.attachmentRow.hidden = false;
+    return;
+  }
+
   if (!state.selectedFile) {
     els.attachmentRow.hidden = true;
     return;
@@ -210,16 +258,21 @@ function renderAttachment() {
 
   const icon = document.createElement("span");
   icon.className = "attachment-icon";
-  icon.textContent = "A";
+  icon.textContent = state.selectedFileMeta?.source === "recording" ? "R" : "A";
 
   const detail = document.createElement("div");
   detail.className = "attachment-detail";
 
   const name = document.createElement("strong");
-  name.textContent = state.selectedFile.name;
+  name.textContent = state.selectedFileMeta?.source === "recording"
+    ? "Recorded audio"
+    : state.selectedFile.name;
 
   const meta = document.createElement("span");
-  meta.textContent = `${formatBytes(state.selectedFile.size)} ready to send`;
+  const duration = state.selectedFileMeta?.durationMs
+    ? ` - ${formatDuration(state.selectedFileMeta.durationMs)}`
+    : "";
+  meta.textContent = `${formatBytes(state.selectedFile.size)}${duration} ready to send`;
 
   const remove = document.createElement("button");
   remove.type = "button";
@@ -234,15 +287,17 @@ function renderAttachment() {
   els.attachmentRow.hidden = false;
 }
 
-function stageFile(file) {
-  if (!file || state.busy) return;
+function stageFile(file, meta = null) {
+  if (!file || state.busy || state.recording) return;
   state.selectedFile = file;
+  state.selectedFileMeta = meta;
   renderAttachment();
   els.messageInput.focus();
 }
 
 function clearAttachment() {
   state.selectedFile = null;
+  state.selectedFileMeta = null;
   els.fileInput.value = "";
   renderAttachment();
 }
@@ -259,6 +314,13 @@ function formatBytes(bytes) {
   return `${value.toFixed(value >= 10 || index === 0 ? 0 : 1)} ${units[index]}`;
 }
 
+function formatDuration(milliseconds) {
+  const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
 function updateActiveTitle() {
   const chat = currentChat();
   els.activeChatTitle.textContent = chat?.title || "New chat";
@@ -273,7 +335,7 @@ async function refreshChats() {
 }
 
 function openDraftChat({ focus = true } = {}) {
-  if (state.busy || state.creatingChat) return currentChat();
+  if (state.busy || state.creatingChat || state.recording) return currentChat();
   state.currentChatId = null;
   state.messages = [];
   els.messageInput.value = "";
@@ -288,6 +350,7 @@ function openDraftChat({ focus = true } = {}) {
 }
 
 async function createChat() {
+  if (state.recording) return null;
   if (state.currentChatId) return currentChat() || { id: state.currentChatId };
   if (state.busy || state.creatingChat) return null;
   state.creatingChat = true;
@@ -308,7 +371,7 @@ async function createChat() {
 }
 
 async function selectChat(chatId) {
-  if (state.busy || state.creatingChat || chatId === state.currentChatId) return;
+  if (state.busy || state.creatingChat || state.recording || chatId === state.currentChatId) return;
   state.currentChatId = chatId;
   els.sidebar.classList.remove("is-open");
   renderChats();
@@ -323,7 +386,7 @@ async function selectChat(chatId) {
 }
 
 async function deleteChat(chatId) {
-  if (state.busy || state.creatingChat) return;
+  if (state.busy || state.creatingChat || state.recording) return;
   await api(`/api/chats/${chatId}`, { method: "DELETE" });
   state.chats = state.chats.filter((chat) => chat.id !== chatId);
   if (state.currentChatId === chatId) {
@@ -358,6 +421,137 @@ function showError(error) {
   renderMessages([...state.messages, message]);
 }
 
+function setAttachMenu(open) {
+  els.attachMenu.hidden = !open;
+  els.attachButton.setAttribute("aria-expanded", open ? "true" : "false");
+}
+
+function updateRecordOption() {
+  els.recordOption.classList.toggle("is-recording", state.recording);
+  els.recordOptionTitle.textContent = state.recording ? "Stop listening" : "Listen";
+  els.recordOptionMeta.textContent = state.recording
+    ? `${formatDuration(Date.now() - state.recordingStartedAt)} recorded`
+    : "Record from microphone";
+}
+
+function recordingSupported() {
+  return Boolean(navigator.mediaDevices?.getUserMedia && window.MediaRecorder);
+}
+
+function preferredRecordingMimeType() {
+  const types = [
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/mp4",
+    "audio/ogg;codecs=opus",
+  ];
+  return types.find((type) => MediaRecorder.isTypeSupported(type)) || "";
+}
+
+function recordingExtension(mimeType) {
+  if (mimeType.includes("mp4")) return "m4a";
+  if (mimeType.includes("ogg")) return "ogg";
+  return "webm";
+}
+
+function recordingFilename(mimeType) {
+  const stamp = new Date()
+    .toISOString()
+    .replace("T", "-")
+    .replaceAll(":", "")
+    .replace(/\.\d+Z$/, "");
+  return `polyscribe-recording-${stamp}.${recordingExtension(mimeType)}`;
+}
+
+async function startRecording() {
+  if (state.busy || state.creatingChat || state.recording) return;
+  if (!recordingSupported()) {
+    showError(new Error("Microphone recording is not supported in this browser."));
+    return;
+  }
+
+  setAttachMenu(false);
+  clearAttachment();
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mimeType = preferredRecordingMimeType();
+    const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+
+    state.recording = true;
+    state.recordingChunks = [];
+    state.recordingMimeType = recorder.mimeType || mimeType || "audio/webm";
+    state.recordingStartedAt = Date.now();
+    state.recordingStream = stream;
+    state.mediaRecorder = recorder;
+
+    recorder.addEventListener("dataavailable", (event) => {
+      if (event.data.size > 0) state.recordingChunks.push(event.data);
+    });
+    recorder.addEventListener("stop", finishRecording);
+    recorder.start(1000);
+
+    els.statusText.textContent = "Listening";
+    state.recordingTimerId = setInterval(() => {
+      renderAttachment();
+      updateRecordOption();
+    }, 1000);
+    renderAttachment();
+    updateControls();
+  } catch (error) {
+    cleanupRecording();
+    showError(new Error(error.message || "Microphone access was blocked."));
+  }
+}
+
+function stopRecording() {
+  if (!state.recording || !state.mediaRecorder) return;
+  if (state.mediaRecorder.state !== "inactive") {
+    state.mediaRecorder.stop();
+  }
+}
+
+function cleanupRecording() {
+  if (state.recordingTimerId) clearInterval(state.recordingTimerId);
+  if (state.recordingStream) {
+    for (const track of state.recordingStream.getTracks()) track.stop();
+  }
+  state.recordingTimerId = null;
+  state.recordingStream = null;
+  state.mediaRecorder = null;
+  state.recording = false;
+}
+
+function finishRecording() {
+  const chunks = [...state.recordingChunks];
+  const mimeType = state.recordingMimeType || "audio/webm";
+  const durationMs = Date.now() - state.recordingStartedAt;
+
+  cleanupRecording();
+  state.recordingChunks = [];
+  state.recordingMimeType = "";
+  state.recordingStartedAt = 0;
+  els.statusText.textContent = "Ready";
+
+  if (!chunks.length) {
+    renderAttachment();
+    updateControls();
+    showError(new Error("No microphone audio was captured."));
+    return;
+  }
+
+  const blob = new Blob(chunks, { type: mimeType });
+  const file = new File([blob], recordingFilename(mimeType), {
+    type: blob.type || mimeType,
+    lastModified: Date.now(),
+  });
+  state.selectedFile = file;
+  state.selectedFileMeta = { source: "recording", durationMs };
+  renderAttachment();
+  updateControls();
+  els.messageInput.focus();
+}
+
 async function syncCurrentChat() {
   if (!state.currentChatId) return;
   try {
@@ -384,7 +578,8 @@ async function startNewChat() {
 async function sendMessage(event) {
   event.preventDefault();
   const content = els.messageInput.value.trim();
-  if ((!content && !state.selectedFile) || state.busy) return;
+  if ((!content && !state.selectedFile) || state.busy || state.recording) return;
+  setAttachMenu(false);
   if (state.selectedFile) {
     await uploadFile(state.selectedFile, content);
     return;
@@ -424,7 +619,7 @@ async function sendMessage(event) {
 }
 
 async function uploadFile(file, prompt = "") {
-  if (!file || state.busy) return;
+  if (!file || state.busy || state.recording) return;
   if (!state.currentChatId) {
     const chat = await createChat();
     if (!chat) return;
@@ -594,7 +789,29 @@ function bindEvents() {
       els.composer.requestSubmit();
     }
   });
-  els.attachButton.addEventListener("click", () => els.fileInput.click());
+  els.attachButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    setAttachMenu(els.attachMenu.hidden);
+  });
+  els.composerTools.addEventListener("click", (event) => {
+    event.stopPropagation();
+  });
+  els.uploadOption.addEventListener("click", () => {
+    setAttachMenu(false);
+    els.fileInput.click();
+  });
+  els.recordOption.addEventListener("click", async () => {
+    if (state.recording) {
+      setAttachMenu(false);
+      stopRecording();
+      return;
+    }
+    await startRecording();
+  });
+  document.addEventListener("click", () => setAttachMenu(false));
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") setAttachMenu(false);
+  });
   els.fileInput.addEventListener("change", () => stageFile(els.fileInput.files[0]));
   els.newChatButton.addEventListener("click", startNewChat);
   els.menuButton.addEventListener("click", () => els.sidebar.classList.toggle("is-open"));

@@ -6,6 +6,7 @@ Python-first web app for chat-style transcription and translation workflows.
 
 - Chat interface with draft-first sessions that are saved after the first prompt.
 - Drag-drop or click upload for audio/video files.
+- Browser microphone recording that stages captured audio as an attachment.
 - Audio/video files stage as composer attachments before sending.
 - Transcribes uploads with Groq's online speech-to-text API.
 - Uses Gemini only for text chat and translation after the transcript exists.
