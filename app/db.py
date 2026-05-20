@@ -10,6 +10,82 @@ from .config import Settings, get_settings
 
 
 DEFAULT_TITLE = "New chat"
+TITLE_MAX_LENGTH = 56
+
+LANGUAGE_NAMES = {
+    "arabic",
+    "bengali",
+    "chinese",
+    "dutch",
+    "english",
+    "french",
+    "german",
+    "greek",
+    "gujarati",
+    "hindi",
+    "indonesian",
+    "italian",
+    "japanese",
+    "korean",
+    "malay",
+    "marathi",
+    "pashto",
+    "persian",
+    "portuguese",
+    "punjabi",
+    "russian",
+    "spanish",
+    "tamil",
+    "telugu",
+    "turkish",
+    "urdu",
+}
+
+FILLER_WORDS = {
+    "a",
+    "about",
+    "an",
+    "and",
+    "audio",
+    "can",
+    "could",
+    "create",
+    "direct",
+    "file",
+    "for",
+    "from",
+    "give",
+    "i",
+    "in",
+    "into",
+    "is",
+    "it",
+    "just",
+    "make",
+    "me",
+    "my",
+    "need",
+    "of",
+    "only",
+    "on",
+    "please",
+    "summary",
+    "summarise",
+    "summarize",
+    "tell",
+    "the",
+    "this",
+    "to",
+    "transcript",
+    "transcribe",
+    "translate",
+    "translation",
+    "want",
+    "what",
+    "with",
+    "would",
+    "you",
+}
 
 
 def _now() -> str:
@@ -61,13 +137,92 @@ def _row_to_dict(row: sqlite3.Row | None) -> dict[str, Any] | None:
     return data
 
 
-def _derive_title(content: str) -> str:
-    clean = " ".join(content.replace("\n", " ").split())
-    if clean.lower().startswith("uploaded "):
-        clean = clean.removeprefix("Uploaded ").strip()
+def _clean_title(value: str, fallback: str = DEFAULT_TITLE) -> str:
+    clean = " ".join(value.replace("\n", " ").split()).strip(" .,:;-")
     if not clean:
-        return DEFAULT_TITLE
-    return clean[:56].rstrip() + ("..." if len(clean) > 56 else "")
+        return fallback
+    return clean[:TITLE_MAX_LENGTH].rstrip() + ("..." if len(clean) > TITLE_MAX_LENGTH else "")
+
+
+def _target_language(text: str) -> str:
+    tokens = [token.strip(".,:;!?()[]{}\"'").lower() for token in text.split()]
+    for index, token in enumerate(tokens):
+        if token in {"to", "into", "in"} and index + 1 < len(tokens):
+            language = tokens[index + 1]
+            if language in LANGUAGE_NAMES:
+                return language.title()
+    for token in tokens:
+        if token in LANGUAGE_NAMES:
+            return token.title()
+    return ""
+
+
+def _topic_from_prompt(prompt: str) -> str:
+    words = [
+        word.strip(".,:;!?()[]{}\"'")
+        for word in prompt.split()
+        if word.strip(".,:;!?()[]{}\"'")
+    ]
+    useful = [
+        word
+        for word in words
+        if word.lower() not in FILLER_WORDS and len(word) > 2
+    ]
+    if not useful:
+        return ""
+    return " ".join(useful[:6]).title()
+
+
+def _derive_upload_title(prompt: str) -> str:
+    clean = _clean_title(prompt, fallback="")
+    lower = clean.lower()
+    target_language = _target_language(clean)
+
+    if "translat" in lower:
+        if any(term in lower for term in ("summary", "summarize", "summarise", "key points")):
+            return f"Audio Summary in {target_language}" if target_language else "Audio Translation Summary"
+        return f"Audio to {target_language} Translation" if target_language else "Audio Translation"
+
+    if any(term in lower for term in ("summarize", "summarise", "summary", "key points", "main points")):
+        return "Audio Summary"
+
+    if any(term in lower for term in ("notes", "minutes", "action items", "takeaways")):
+        return "Audio Notes"
+
+    if any(term in lower for term in ("clean", "polish", "remove filler", "fix grammar")):
+        return "Clean Audio Transcript"
+
+    if any(term in lower for term in ("analyze", "analyse", "explain", "what is this about")):
+        return "Audio Analysis"
+
+    if any(term in lower for term in ("transcript", "transcribe", "captions", "subtitles", "what was said", "what is said")):
+        return "Audio Transcript"
+
+    topic = _topic_from_prompt(clean)
+    return f"Audio: {topic}" if topic else "Audio Transcript"
+
+
+def _derive_text_title(content: str) -> str:
+    clean = _clean_title(content, fallback="")
+    lower = clean.lower()
+    target_language = _target_language(clean)
+
+    if "translat" in lower:
+        return f"{target_language} Translation" if target_language else "Translation"
+
+    if any(term in lower for term in ("summarize", "summarise", "summary", "key points", "main points")):
+        topic = _topic_from_prompt(clean)
+        return f"Summary: {topic}" if topic else "Summary"
+
+    topic = _topic_from_prompt(clean)
+    return _clean_title(topic or clean)
+
+
+def _derive_title(content: str, kind: str = "text", metadata: dict[str, Any] | None = None) -> str:
+    metadata = metadata or {}
+    if kind == "upload":
+        return _derive_upload_title(str(metadata.get("prompt") or ""))
+    return _derive_text_title(content)
 
 
 def create_chat(title: str = DEFAULT_TITLE) -> dict[str, Any]:
@@ -141,7 +296,8 @@ def add_message(
 ) -> dict[str, Any]:
     message_id = uuid.uuid4().hex
     now = _now()
-    metadata_json = json.dumps(metadata or {}, separators=(",", ":"))
+    metadata = metadata or {}
+    metadata_json = json.dumps(metadata, separators=(",", ":"))
 
     with _connect() as connection:
         chat = connection.execute(
@@ -162,7 +318,7 @@ def add_message(
         if role == "user" and chat["title"] == DEFAULT_TITLE:
             connection.execute(
                 "UPDATE chats SET title = ?, updated_at = ? WHERE id = ?",
-                (_derive_title(content), now, chat_id),
+                (_derive_title(content, kind, metadata), now, chat_id),
             )
         else:
             connection.execute(
