@@ -47,6 +47,13 @@
   display: none !important;
 }
 
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -72,8 +79,10 @@ button {
 .app-shell {
   display: grid;
   grid-template-columns: 268px minmax(0, 1fr);
-  min-height: 100vh;
-  min-height: 100svh;
+  height: 100vh;
+  height: 100svh;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .sidebar {
@@ -83,8 +92,10 @@ button {
   flex-direction: column;
   gap: 14px;
   padding: 16px;
-  min-height: 100vh;
-  min-height: 100svh;
+  height: 100vh;
+  height: 100svh;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .brand {
@@ -273,10 +284,12 @@ button {
 
 .workspace {
   min-width: 0;
-  min-height: 100vh;
-  min-height: 100svh;
+  height: 100vh;
+  height: 100svh;
+  min-height: 0;
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
   background: rgba(255, 255, 255, 0.36);
 }
 
@@ -432,7 +445,10 @@ button {
 }
 
 .messages {
+  min-height: 0;
+  height: 100%;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 24px min(5vw, 56px);
 }
 
@@ -556,6 +572,7 @@ button {
 }
 
 .composer-shell {
+  min-width: 0;
   border-top: 1px solid var(--line);
   background: color-mix(in srgb, var(--bg) 92%, transparent);
   padding: 12px min(5vw, 56px) max(16px, env(safe-area-inset-bottom));
@@ -777,7 +794,8 @@ button {
 
 .composer textarea {
   width: 100%;
-  max-height: 180px;
+  max-height: min(180px, 28svh);
+  overflow-y: auto;
   resize: none;
   border: 0;
   outline: none;
@@ -928,6 +946,7 @@ button {
 .login-page {
   display: grid;
   place-items: center;
+  overflow: auto;
   padding: 24px;
 }
 
