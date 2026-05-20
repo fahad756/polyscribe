@@ -8,8 +8,10 @@ Python-first web app for chat-style transcription and translation workflows.
 - Drag-drop or click upload for audio/video files.
 - Browser microphone recording that stages captured audio as an attachment.
 - Audio/video files stage as composer attachments before sending.
+- SEO-friendly About section with portfolio and LinkedIn links.
 - Transcribes uploads with Groq's online speech-to-text API.
 - Uses Gemini only for text chat and translation after the transcript exists.
+- Retries temporary Gemini capacity errors and can fall back to a lighter model.
 - Converts/chunks larger videos with ffmpeg before transcription.
 - Optional shared password gate for private deployments.
 
@@ -46,6 +48,7 @@ Edit `.env`:
 
 ```env
 GEMINI_API_KEY=<your-gemini-api-key>
+GEMINI_FALLBACK_MODELS=gemini-2.5-flash-lite
 GROQ_API_KEY=<your-groq-api-key>
 ```
 
@@ -67,6 +70,9 @@ SECRET_KEY=<long-random-secret>
 APP_PASSWORD=<optional-shared-password>
 CHAT_PROVIDER=gemini
 GEMINI_API_KEY=<private-host-env-var>
+GEMINI_FALLBACK_MODELS=gemini-2.5-flash-lite
+GEMINI_RETRY_ATTEMPTS=3
+GEMINI_RETRY_BASE_DELAY_SECONDS=1
 TRANSCRIPTION_PROVIDER=groq
 GROQ_API_KEY=<private-host-env-var>
 DATABASE_PATH=/data/polyscribe.db

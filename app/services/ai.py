@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import random
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -17,6 +19,23 @@ Core behavior:
 - If the user asks about uploaded media, use the transcript already present in the conversation.
 - Do not pretend to process files that have not been uploaded through the app.
 """
+
+RETRYABLE_GEMINI_MARKERS = (
+    "429",
+    "500",
+    "503",
+    "504",
+    "capacity",
+    "deadline",
+    "high demand",
+    "internal",
+    "overloaded",
+    "rate limit",
+    "resource_exhausted",
+    "temporarily",
+    "timeout",
+    "unavailable",
+)
 
 
 class AIServiceError(RuntimeError):
@@ -88,13 +107,7 @@ class GeminiChatProvider:
             "Continue this conversation. Answer only the latest user request.\n\n"
             f"{_render_conversation(messages, self.settings.max_chat_context_chars)}"
         )
-        try:
-            response = self.client.models.generate_content(
-                model=self.settings.gemini_model,
-                contents=prompt,
-            )
-        except Exception as exc:
-            raise AIServiceError(f"Gemini request failed: {exc}") from exc
+        response = self._generate_content(prompt, "Gemini request failed")
 
         text = _response_text(response)
         if not text:
@@ -105,6 +118,8 @@ class GeminiChatProvider:
         clean_prompt = prompt.strip()
         if not clean_prompt:
             return f"Transcript: {filename}\n\n{transcript.strip()}"
+        if _is_direct_transcript_request(clean_prompt):
+            return transcript.strip()
 
         instruction = (
             f"{SYSTEM_PROMPT}\n\n"
@@ -116,18 +131,55 @@ class GeminiChatProvider:
             f"User instruction:\n{clean_prompt}\n\n"
             f"Transcript:\n{transcript}"
         )
-        try:
-            response = self.client.models.generate_content(
-                model=self.settings.gemini_model,
-                contents=instruction,
-            )
-        except Exception as exc:
-            raise AIServiceError(f"Gemini transcript response failed: {exc}") from exc
+        response = self._generate_content(
+            instruction,
+            "Gemini transcript response failed",
+        )
 
         text = _response_text(response)
         if not text:
             raise AIServiceError("Gemini returned an empty response.")
         return text
+
+    def _generate_content(self, contents: str, failure_message: str) -> Any:
+        last_error: Exception | None = None
+        models = self._model_sequence()
+        attempts = max(self.settings.gemini_retry_attempts, 1)
+
+        for model in models:
+            for attempt in range(1, attempts + 1):
+                try:
+                    return self.client.models.generate_content(
+                        model=model,
+                        contents=contents,
+                    )
+                except Exception as exc:
+                    last_error = exc
+                    if not _is_retryable_gemini_error(exc):
+                        raise AIServiceError(f"{failure_message}: {exc}") from exc
+                    if attempt < attempts:
+                        time.sleep(self._retry_delay(attempt))
+
+        if last_error is None:
+            raise AIServiceError(f"{failure_message}: no Gemini model configured.")
+        raise AIServiceError(
+            f"{failure_message} after retries: {last_error}"
+        ) from last_error
+
+    def _model_sequence(self) -> tuple[str, ...]:
+        models: list[str] = []
+        for model in (self.settings.gemini_model, *self.settings.gemini_fallback_models):
+            model = model.strip()
+            if model and model not in models:
+                models.append(model)
+        return tuple(models or ["gemini-2.5-flash"])
+
+    def _retry_delay(self, attempt: int) -> float:
+        base = self.settings.gemini_retry_base_delay_seconds
+        if base <= 0:
+            return 0.0
+        delay = min(base * (2 ** (attempt - 1)), 8.0)
+        return delay + random.uniform(0, min(base, 1.0))
 
 
 class GroqTranscriptionProvider:
@@ -202,6 +254,52 @@ class GroqTranscriptionProvider:
             text = dumped.get("text", "")
             return text.strip() if isinstance(text, str) else ""
         return ""
+
+
+def _is_retryable_gemini_error(exc: Exception) -> bool:
+    parts = [str(exc)]
+    for attr in ("code", "status", "status_code"):
+        value = getattr(exc, attr, None)
+        if value is not None:
+            parts.append(str(value))
+    text = " ".join(parts).lower()
+    return any(marker in text for marker in RETRYABLE_GEMINI_MARKERS)
+
+
+def _is_direct_transcript_request(prompt: str) -> bool:
+    text = " ".join(prompt.lower().split())
+    direct_terms = (
+        "direct transcript",
+        "full transcript",
+        "give me transcript",
+        "give me the transcript",
+        "i want transcript",
+        "i want the transcript",
+        "speech to text",
+        "speech-to-text",
+        "transcribe",
+        "transcript",
+        "transcription",
+        "write it out",
+        "write out",
+    )
+    transform_terms = (
+        "bullet",
+        "clean",
+        "convert",
+        "explain",
+        "fix",
+        "format",
+        "grammar",
+        "key point",
+        "rewrite",
+        "summar",
+        "translate",
+    )
+    return (
+        any(term in text for term in direct_terms)
+        and not any(term in text for term in transform_terms)
+    )
 
 
 def _render_conversation(messages: list[dict[str, Any]], max_context_chars: int) -> str:

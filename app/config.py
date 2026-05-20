@@ -49,6 +49,24 @@ def _int_from_env(name: str, default: int, minimum: int = 1) -> int:
     return max(value, minimum)
 
 
+def _float_from_env(name: str, default: float, minimum: float = 0.0) -> float:
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == "":
+        return default
+    try:
+        value = float(raw)
+    except ValueError:
+        return default
+    return max(value, minimum)
+
+
+def _csv_from_env(name: str, default: str = "") -> tuple[str, ...]:
+    raw = os.getenv(name, default)
+    if not raw:
+        return ()
+    return tuple(value.strip() for value in raw.split(",") if value.strip())
+
+
 def _extensions_from_env() -> frozenset[str]:
     raw = os.getenv("ALLOWED_EXTENSIONS")
     if not raw:
@@ -69,6 +87,9 @@ class Settings:
     transcription_provider: str
     gemini_api_key: str
     gemini_model: str
+    gemini_fallback_models: tuple[str, ...]
+    gemini_retry_attempts: int
+    gemini_retry_base_delay_seconds: float
     groq_api_key: str
     groq_transcription_model: str
     database_path: Path
@@ -104,6 +125,16 @@ def get_settings() -> Settings:
         transcription_provider=os.getenv("TRANSCRIPTION_PROVIDER", "groq").strip().lower(),
         gemini_api_key=os.getenv("GEMINI_API_KEY", "").strip(),
         gemini_model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip(),
+        gemini_fallback_models=_csv_from_env(
+            "GEMINI_FALLBACK_MODELS",
+            "gemini-2.5-flash-lite",
+        ),
+        gemini_retry_attempts=_int_from_env("GEMINI_RETRY_ATTEMPTS", 3),
+        gemini_retry_base_delay_seconds=_float_from_env(
+            "GEMINI_RETRY_BASE_DELAY_SECONDS",
+            1.0,
+            0.0,
+        ),
         groq_api_key=os.getenv("GROQ_API_KEY", "").strip(),
         groq_transcription_model=os.getenv(
             "GROQ_TRANSCRIPTION_MODEL",
