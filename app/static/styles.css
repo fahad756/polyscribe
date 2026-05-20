@@ -634,6 +634,10 @@ button {
   background: var(--accent-soft);
 }
 
+.quick-record-button {
+  display: none;
+}
+
 .attach-menu {
   position: absolute;
   left: 0;
@@ -700,7 +704,8 @@ button {
 }
 
 .record-dot::before,
-.recording-dot::before {
+.recording-dot::before,
+.quick-record-button::before {
   content: "";
   width: 10px;
   height: 10px;
@@ -710,7 +715,8 @@ button {
 }
 
 .attach-menu-item.is-recording .record-dot::before,
-.is-recording .recording-dot::before {
+.is-recording .recording-dot::before,
+.quick-record-button.is-recording::before {
   animation: recording-pulse 1.1s ease-in-out infinite;
 }
 
@@ -985,15 +991,21 @@ button {
 
   .composer {
     min-height: 52px;
-    grid-template-columns: 38px minmax(0, 1fr) auto;
+    grid-template-columns: 38px 38px minmax(0, 1fr) auto;
     gap: 6px;
     padding: 7px;
   }
 
   .composer-tools,
-  .tool-button {
+  .tool-button,
+  .quick-record-button {
     width: 36px;
     height: 36px;
+  }
+
+  .quick-record-button {
+    display: grid;
+    place-items: center;
   }
 
   .attach-menu {
@@ -1063,7 +1075,7 @@ button {
   }
 
   .composer {
-    grid-template-columns: 36px minmax(0, 1fr) minmax(48px, auto);
+    grid-template-columns: 36px 36px minmax(0, 1fr) minmax(48px, auto);
   }
 
   .composer textarea {

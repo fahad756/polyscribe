@@ -38,6 +38,7 @@ const els = {
   recordOption: document.getElementById("recordOption"),
   recordOptionTitle: document.getElementById("recordOptionTitle"),
   recordOptionMeta: document.getElementById("recordOptionMeta"),
+  quickRecordButton: document.getElementById("quickRecordButton"),
   sendButton: document.getElementById("sendButton"),
   dropOverlay: document.getElementById("dropOverlay"),
   sourceToast: document.getElementById("sourceToast"),
@@ -81,6 +82,7 @@ function updateControls() {
   els.attachButton.disabled = locked;
   els.uploadOption.disabled = locked || state.recording;
   els.recordOption.disabled = locked && !state.recording;
+  els.quickRecordButton.disabled = locked && !state.recording;
   els.newChatButton.disabled = locked || state.recording;
   for (const button of document.querySelectorAll(".chat-open, .delete-chat")) {
     button.disabled = locked || state.recording;
@@ -428,10 +430,15 @@ function setAttachMenu(open) {
 
 function updateRecordOption() {
   els.recordOption.classList.toggle("is-recording", state.recording);
+  els.quickRecordButton.classList.toggle("is-recording", state.recording);
   els.recordOptionTitle.textContent = state.recording ? "Stop listening" : "Listen";
   els.recordOptionMeta.textContent = state.recording
     ? `${formatDuration(Date.now() - state.recordingStartedAt)} recorded`
     : "Record from microphone";
+  els.quickRecordButton.setAttribute(
+    "aria-label",
+    state.recording ? "Stop listening" : "Start listening",
+  );
 }
 
 function recordingSupported() {
@@ -474,9 +481,25 @@ async function startRecording() {
   clearAttachment();
 
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        autoGainControl: true,
+        channelCount: { ideal: 1 },
+        echoCancellation: true,
+        noiseSuppression: false,
+        sampleRate: { ideal: 48000 },
+        sampleSize: { ideal: 16 },
+      },
+    });
     const mimeType = preferredRecordingMimeType();
-    const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    const recorderOptions = { audioBitsPerSecond: 160000 };
+    if (mimeType) recorderOptions.mimeType = mimeType;
+    let recorder;
+    try {
+      recorder = new MediaRecorder(stream, recorderOptions);
+    } catch {
+      recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    }
 
     state.recording = true;
     state.recordingChunks = [];
@@ -803,6 +826,13 @@ function bindEvents() {
   els.recordOption.addEventListener("click", async () => {
     if (state.recording) {
       setAttachMenu(false);
+      stopRecording();
+      return;
+    }
+    await startRecording();
+  });
+  els.quickRecordButton.addEventListener("click", async () => {
+    if (state.recording) {
       stopRecording();
       return;
     }
