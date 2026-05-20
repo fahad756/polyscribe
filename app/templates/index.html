@@ -37,11 +37,18 @@
             <span id="statusText">Ready</span>
           </div>
           <button class="theme-button" id="themeButton" type="button" aria-label="Toggle dark mode" aria-pressed="false" title="Toggle theme">
-            <span class="theme-symbol theme-sun" aria-hidden="true">☀</span>
-            <span class="theme-track" aria-hidden="true">
-              <span class="theme-thumb"></span>
+            <span class="theme-thumb" aria-hidden="true"></span>
+            <span class="theme-symbol theme-sun" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <circle cx="12" cy="12" r="4"></circle>
+                <path d="M12 2v2M12 20v2M4.9 4.9l1.5 1.5M17.6 17.6l1.5 1.5M2 12h2M20 12h2M4.9 19.1l1.5-1.5M17.6 6.4l1.5-1.5"></path>
+              </svg>
             </span>
-            <span class="theme-symbol theme-moon" aria-hidden="true">☾</span>
+            <span class="theme-symbol theme-moon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <path d="M20.2 14.4A7.6 7.6 0 0 1 9.6 3.8a8.5 8.5 0 1 0 10.6 10.6Z"></path>
+              </svg>
+            </span>
           </button>
         </header>
 

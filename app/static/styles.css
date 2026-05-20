@@ -259,28 +259,30 @@ button {
 
 .theme-button {
   margin-left: auto;
-  width: 120px;
-  min-width: 120px;
+  position: relative;
+  width: 78px;
+  min-width: 78px;
   height: 38px;
   border-radius: 999px;
   border: 0;
-  background: var(--panel-strong);
+  background: color-mix(in srgb, var(--accent-soft) 68%, var(--panel) 32%);
   color: var(--text);
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
+  justify-items: center;
+  gap: 0;
   font-weight: 800;
   line-height: 1;
-  padding: 5px 8px;
-  box-shadow: inset 0 0 0 1px rgba(32, 33, 36, 0.08), 0 1px 2px rgba(20, 22, 28, 0.08);
+  padding: 4px;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(32, 33, 36, 0.08), 0 1px 3px rgba(20, 22, 28, 0.08);
   outline: none;
-  transition: background 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+  transition: background 150ms ease, box-shadow 150ms ease;
 }
 
 .theme-button:hover {
-  background: var(--accent-soft);
-  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--accent-soft) 82%, var(--panel) 18%);
 }
 
 .theme-button:focus,
@@ -293,47 +295,47 @@ button {
 }
 
 .theme-symbol {
-  flex: 0 0 22px;
-  width: 22px;
-  height: 22px;
+  position: relative;
+  z-index: 1;
+  width: 30px;
+  height: 30px;
   display: grid;
   place-items: center;
   border-radius: 50%;
-  font-family: "Segoe UI Symbol", "Noto Color Emoji", "Apple Color Emoji", sans-serif;
-  font-size: 1rem;
   line-height: 1;
-  transition: color 150ms ease, background 150ms ease, opacity 150ms ease;
+  transition: color 150ms ease, opacity 150ms ease;
+}
+
+.theme-symbol svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .theme-sun {
   color: #cc8a00;
-  background: rgba(240, 192, 74, 0.2);
 }
 
 .theme-moon {
   color: var(--muted);
-}
-
-.theme-track {
-  flex: 0 0 44px;
-  position: relative;
-  width: 44px;
-  height: 24px;
-  border-radius: 999px;
-  background: #d9dde2;
-  box-shadow: inset 0 1px 3px rgba(20, 22, 28, 0.2);
+  opacity: 0.72;
 }
 
 .theme-thumb {
   position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 18px;
-  height: 18px;
+  z-index: 0;
+  top: 4px;
+  left: 4px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   background: #ffffff;
-  box-shadow: 0 2px 8px rgba(20, 22, 28, 0.28);
-  transition: transform 180ms ease, background 180ms ease;
+  box-shadow: 0 2px 8px rgba(20, 22, 28, 0.22);
+  transition: transform 180ms ease, background 180ms ease, box-shadow 180ms ease;
 }
 
 [data-theme="dark"] .theme-button {
@@ -343,22 +345,18 @@ button {
 
 [data-theme="dark"] .theme-sun {
   color: var(--muted);
-  background: transparent;
   opacity: 0.72;
 }
 
 [data-theme="dark"] .theme-moon {
   color: #7c8cff;
-  background: rgba(124, 140, 255, 0.16);
-}
-
-[data-theme="dark"] .theme-track {
-  background: #363c46;
+  opacity: 1;
 }
 
 [data-theme="dark"] .theme-thumb {
-  transform: translateX(22px);
+  transform: translateX(40px);
   background: #eef1ff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.32);
 }
 
 .messages {
@@ -863,33 +861,24 @@ button {
   }
 
   .theme-button {
-    width: 112px;
-    min-width: 112px;
+    width: 74px;
+    min-width: 74px;
     height: 36px;
-    gap: 7px;
-    padding: 4px 6px;
+    padding: 4px;
   }
 
   .theme-symbol {
-    flex-basis: 20px;
-    width: 20px;
-    height: 20px;
-    font-size: 0.94rem;
-  }
-
-  .theme-track {
-    flex-basis: 42px;
-    width: 42px;
-    height: 22px;
+    width: 28px;
+    height: 28px;
   }
 
   .theme-thumb {
-    width: 16px;
-    height: 16px;
+    width: 28px;
+    height: 28px;
   }
 
   [data-theme="dark"] .theme-thumb {
-    transform: translateX(20px);
+    transform: translateX(38px);
   }
 
   .messages {
