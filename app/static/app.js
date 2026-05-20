@@ -3,6 +3,7 @@ const state = {
   currentChatId: null,
   messages: [],
   busy: false,
+  selectedFile: null,
 };
 
 const els = {
@@ -15,13 +16,19 @@ const els = {
   statusText: document.getElementById("statusText"),
   messageList: document.getElementById("messageList"),
   emptyState: document.getElementById("emptyState"),
+  emptyGreeting: document.getElementById("emptyGreeting"),
+  emptySubtitle: document.getElementById("emptySubtitle"),
   composer: document.getElementById("composer"),
   messageInput: document.getElementById("messageInput"),
   fileInput: document.getElementById("fileInput"),
+  attachmentRow: document.getElementById("attachmentRow"),
   attachButton: document.getElementById("attachButton"),
   sendButton: document.getElementById("sendButton"),
   dropOverlay: document.getElementById("dropOverlay"),
   sourceToast: document.getElementById("sourceToast"),
+  welcomeModal: document.getElementById("welcomeModal"),
+  welcomeForm: document.getElementById("welcomeForm"),
+  nameInput: document.getElementById("nameInput"),
 };
 
 async function api(path, options = {}) {
@@ -147,6 +154,67 @@ function renderMessages(messages = state.messages) {
   scrollToBottom();
 }
 
+function renderAttachment() {
+  els.attachmentRow.textContent = "";
+  if (!state.selectedFile) {
+    els.attachmentRow.hidden = true;
+    return;
+  }
+
+  const chip = document.createElement("div");
+  chip.className = "attachment-chip";
+
+  const icon = document.createElement("span");
+  icon.className = "attachment-icon";
+  icon.textContent = "A";
+
+  const detail = document.createElement("div");
+  detail.className = "attachment-detail";
+
+  const name = document.createElement("strong");
+  name.textContent = state.selectedFile.name;
+
+  const meta = document.createElement("span");
+  meta.textContent = `${formatBytes(state.selectedFile.size)} ready to send`;
+
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "attachment-remove";
+  remove.textContent = "x";
+  remove.setAttribute("aria-label", "Remove attachment");
+  remove.addEventListener("click", clearAttachment);
+
+  detail.append(name, meta);
+  chip.append(icon, detail, remove);
+  els.attachmentRow.appendChild(chip);
+  els.attachmentRow.hidden = false;
+}
+
+function stageFile(file) {
+  if (!file || state.busy) return;
+  state.selectedFile = file;
+  renderAttachment();
+  els.messageInput.focus();
+}
+
+function clearAttachment() {
+  state.selectedFile = null;
+  els.fileInput.value = "";
+  renderAttachment();
+}
+
+function formatBytes(bytes) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB"];
+  let value = bytes;
+  let index = 0;
+  while (value >= 1024 && index < units.length - 1) {
+    value /= 1024;
+    index += 1;
+  }
+  return `${value.toFixed(value >= 10 || index === 0 ? 0 : 1)} ${units[index]}`;
+}
+
 function updateActiveTitle() {
   const chat = currentChat();
   els.activeChatTitle.textContent = chat?.title || "New chat";
@@ -220,7 +288,11 @@ function showError(error) {
 async function sendMessage(event) {
   event.preventDefault();
   const content = els.messageInput.value.trim();
-  if (!content || state.busy) return;
+  if ((!content && !state.selectedFile) || state.busy) return;
+  if (state.selectedFile) {
+    await uploadFile(state.selectedFile, content);
+    return;
+  }
   if (!state.currentChatId) await createChat();
 
   els.messageInput.value = "";
@@ -250,13 +322,13 @@ async function sendMessage(event) {
   }
 }
 
-async function uploadFile(file) {
+async function uploadFile(file, prompt = "") {
   if (!file || state.busy) return;
   if (!state.currentChatId) await createChat();
 
-  const prompt = els.messageInput.value.trim();
   els.messageInput.value = "";
   resizeTextarea();
+  clearAttachment();
 
   const body = new FormData();
   body.append("file", file);
@@ -264,10 +336,11 @@ async function uploadFile(file) {
   body.append("language", "");
 
   setBusy(true, "Transcribing");
+  const uploadText = prompt ? `Uploaded ${file.name}\n\n${prompt}` : `Uploaded ${file.name}`;
   renderMessages([
     ...state.messages,
-    { id: "pending-upload", role: "user", content: `Uploaded ${file.name}` },
-    { id: "pending-transcribing", role: "assistant", content: "Transcribing...", pending: true },
+    { id: "pending-upload", role: "user", content: uploadText },
+    { id: "pending-transcribing", role: "assistant", content: "Listening closely...", pending: true },
   ]);
 
   try {
@@ -313,6 +386,39 @@ function installThemeToggle() {
   els.themeButton.addEventListener("click", () => {
     const current = document.documentElement.dataset.theme === "dark" ? "dark" : "light";
     applyTheme(current === "dark" ? "light" : "dark");
+  });
+}
+
+function applyVisitorName(name, firstVisit = false) {
+  const cleanName = (name || "").trim();
+  if (!cleanName) {
+    els.emptyGreeting.textContent = "PolyScribe";
+    els.emptySubtitle.textContent = "Audio in. Clean words out. Then ask away.";
+    return;
+  }
+  els.emptyGreeting.textContent = firstVisit ? `Welcome, ${cleanName}` : `Welcome back, ${cleanName}`;
+  els.emptySubtitle.textContent = "Attach audio, add a prompt, and I will handle the transcript first.";
+}
+
+function installWelcomeFlow() {
+  const storedName = localStorage.getItem("polyscribe-name") || "";
+  if (storedName.trim()) {
+    applyVisitorName(storedName);
+    return;
+  }
+
+  els.welcomeModal.hidden = false;
+  requestAnimationFrame(() => els.nameInput.focus());
+  els.welcomeForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const name = els.nameInput.value.trim();
+    if (!name) {
+      els.nameInput.focus();
+      return;
+    }
+    localStorage.setItem("polyscribe-name", name);
+    els.welcomeModal.hidden = true;
+    applyVisitorName(name, true);
   });
 }
 
@@ -368,7 +474,7 @@ function installDragAndDrop() {
     dragDepth = 0;
     document.body.classList.remove("is-dragging");
     const file = event.dataTransfer.files[0];
-    uploadFile(file);
+    stageFile(file);
   });
 }
 
@@ -382,10 +488,11 @@ function bindEvents() {
     }
   });
   els.attachButton.addEventListener("click", () => els.fileInput.click());
-  els.fileInput.addEventListener("change", () => uploadFile(els.fileInput.files[0]));
+  els.fileInput.addEventListener("change", () => stageFile(els.fileInput.files[0]));
   els.newChatButton.addEventListener("click", createChat);
   els.menuButton.addEventListener("click", () => els.sidebar.classList.toggle("is-open"));
 
+  installWelcomeFlow();
   installThemeToggle();
   installSourceGuard();
   installDragAndDrop();

@@ -44,6 +44,14 @@ class AIService:
     def chat(self, messages: list[dict[str, Any]]) -> str:
         return self._chat_provider.chat(messages)
 
+    def answer_from_transcript(
+        self,
+        prompt: str,
+        transcript: str,
+        filename: str,
+    ) -> str:
+        return self._chat_provider.answer_from_transcript(prompt, transcript, filename)
+
     def transcribe_paths(
         self,
         paths: list[Path],
@@ -87,6 +95,34 @@ class GeminiChatProvider:
             )
         except Exception as exc:
             raise AIServiceError(f"Gemini request failed: {exc}") from exc
+
+        text = _response_text(response)
+        if not text:
+            raise AIServiceError("Gemini returned an empty response.")
+        return text
+
+    def answer_from_transcript(self, prompt: str, transcript: str, filename: str) -> str:
+        clean_prompt = prompt.strip()
+        if not clean_prompt:
+            return f"Transcript: {filename}\n\n{transcript.strip()}"
+
+        instruction = (
+            f"{SYSTEM_PROMPT}\n\n"
+            "The user uploaded an audio/video file. A dedicated speech-to-text service "
+            "has already produced the transcript below. Follow the user's instruction "
+            "using this transcript as source material. If the user asks for the direct "
+            "transcript, return the transcript text without adding commentary.\n\n"
+            f"File: {filename}\n\n"
+            f"User instruction:\n{clean_prompt}\n\n"
+            f"Transcript:\n{transcript}"
+        )
+        try:
+            response = self.client.models.generate_content(
+                model=self.settings.gemini_model,
+                contents=instruction,
+            )
+        except Exception as exc:
+            raise AIServiceError(f"Gemini transcript response failed: {exc}") from exc
 
         text = _response_text(response)
         if not text:
@@ -174,6 +210,15 @@ def _render_conversation(messages: list[dict[str, Any]], max_context_chars: int)
     for message in reversed(messages[-30:]):
         role = "Assistant" if message.get("role") == "assistant" else "User"
         content = str(message.get("content") or "").strip()
+        metadata = message.get("metadata") or {}
+        transcript = str(metadata.get("transcript") or "").strip()
+        filename = str(metadata.get("filename") or "uploaded media").strip()
+        if transcript:
+            content = (
+                f"{content}\n\n"
+                f"[Transcript context from {filename}; use for follow-up questions]\n"
+                f"{transcript}"
+            ).strip()
         if not content:
             continue
 

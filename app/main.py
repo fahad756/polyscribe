@@ -200,15 +200,20 @@ async def api_upload_media(
     saved = await save_upload(file, settings)
     prepared = None
 
+    user_content = f"Uploaded {saved.original_filename}"
+    if prompt.strip():
+        user_content = f"{user_content}\n\n{prompt.strip()}"
+
     db.add_message(
         chat_id,
         "user",
-        f"Uploaded {saved.original_filename}",
+        user_content,
         kind="upload",
         metadata={
             "filename": saved.original_filename,
             "sizeBytes": saved.size_bytes,
             "extension": saved.extension,
+            "prompt": prompt.strip(),
         },
     )
 
@@ -224,16 +229,23 @@ async def api_upload_media(
     finally:
         cleanup_media(saved, prepared, settings)
 
-    assistant_content = f"Transcript: {saved.original_filename}\n\n{result.text}"
+    assistant_content = await asyncio.to_thread(
+        service.answer_from_transcript,
+        prompt,
+        result.text,
+        saved.original_filename,
+    )
     db.add_message(
         chat_id,
         "assistant",
         assistant_content,
-        kind="transcript",
+        kind="media_response",
         metadata={
             "filename": saved.original_filename,
             "chunks": result.chunk_count,
             "sourceLanguage": result.source_language or language.strip(),
+            "transcript": result.text,
+            "prompt": prompt.strip(),
         },
     )
     return {"chat": db.get_chat(chat_id), "messages": db.list_messages(chat_id)}

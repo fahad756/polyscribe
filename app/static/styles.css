@@ -43,6 +43,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -290,6 +294,18 @@ button {
   line-height: 1.45;
 }
 
+.empty-logo {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--gold);
+  color: #18191b;
+  font-weight: 900;
+  box-shadow: var(--shadow);
+}
+
 .empty-signal {
   width: min(360px, 76vw);
   height: 92px;
@@ -433,6 +449,66 @@ button {
   text-align: right;
 }
 
+.attachment-row {
+  max-width: 920px;
+  margin: 0 auto 8px;
+}
+
+.attachment-chip {
+  min-height: 52px;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 32px;
+  align-items: center;
+  gap: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: 0 8px 22px rgba(19, 22, 28, 0.05);
+  padding: 8px 10px;
+}
+
+.attachment-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-weight: 900;
+}
+
+.attachment-detail {
+  min-width: 0;
+}
+
+.attachment-detail strong,
+.attachment-detail span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-detail span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin-top: 2px;
+}
+
+.attachment-remove {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  background: var(--panel-strong);
+  color: var(--muted);
+}
+
+.attachment-remove:hover {
+  color: var(--text);
+  background: var(--accent-soft);
+}
+
 .composer {
   max-width: 920px;
   margin: 0 auto;
@@ -545,6 +621,68 @@ button {
 .source-toast.is-visible {
   opacity: 1;
   transform: translateY(0);
+}
+
+.welcome-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  background: rgba(16, 18, 20, 0.55);
+  padding: 24px;
+  backdrop-filter: blur(12px);
+}
+
+.welcome-card {
+  width: min(430px, 100%);
+  display: grid;
+  gap: 14px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  padding: 26px;
+}
+
+.welcome-mark {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--gold);
+  color: #18191b;
+  font-weight: 900;
+}
+
+.welcome-card h2,
+.welcome-card p {
+  margin: 0;
+}
+
+.welcome-card h2 {
+  font-size: 1.55rem;
+  line-height: 1.15;
+}
+
+.welcome-card p {
+  color: var(--muted);
+}
+
+.welcome-card input {
+  min-height: 44px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel-strong);
+  color: var(--text);
+  padding: 0 12px;
+  outline: none;
+}
+
+.welcome-card input:focus {
+  border-color: var(--accent);
 }
 
 .login-page {
@@ -668,6 +806,10 @@ button {
 
   .upload-limit {
     font-size: 0.78rem;
+  }
+
+  .attachment-chip {
+    grid-template-columns: 32px minmax(0, 1fr) 30px;
   }
 
   .source-toast {

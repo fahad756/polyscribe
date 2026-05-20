@@ -42,6 +42,7 @@
 
         <section class="messages" id="messageList" aria-live="polite">
           <div class="empty-state" id="emptyState">
+            <div class="empty-logo" aria-hidden="true">P</div>
             <div class="empty-signal" aria-hidden="true">
               <span></span>
               <span></span>
@@ -49,8 +50,8 @@
               <span></span>
               <span></span>
             </div>
-            <h1>{{ app_name }}</h1>
-            <p>Audio in. Clean words out. Then ask away.</p>
+            <h1 id="emptyGreeting">{{ app_name }}</h1>
+            <p id="emptySubtitle">Audio in. Clean words out. Then ask away.</p>
           </div>
         </section>
 
@@ -58,6 +59,7 @@
           <div class="upload-options">
             <span class="upload-limit">Drop media anywhere or use +. Up to {{ max_upload_mb }} MB.</span>
           </div>
+          <div class="attachment-row" id="attachmentRow" hidden></div>
 
           <form class="composer" id="composer">
             <input
@@ -85,6 +87,15 @@
       </div>
       <div class="source-toast" id="sourceToast" role="status" aria-live="polite">
         No source click, you naughty naught.
+      </div>
+      <div class="welcome-modal" id="welcomeModal" aria-labelledby="welcomeTitle" role="dialog" aria-modal="true" hidden>
+        <form class="welcome-card" id="welcomeForm">
+          <div class="welcome-mark">P</div>
+          <h2 id="welcomeTitle">Welcome to {{ app_name }}</h2>
+          <p>What should I call you?</p>
+          <input id="nameInput" name="name" autocomplete="name" maxlength="40" placeholder="Your name">
+          <button class="send-button" type="submit">Continue</button>
+        </form>
       </div>
     </div>
   </body>

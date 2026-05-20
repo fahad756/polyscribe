@@ -6,12 +6,19 @@ Python-first web app for chat-style transcription and translation workflows.
 
 - Chat interface with persisted chat sessions.
 - Drag-drop or click upload for audio/video files.
+- Audio/video files stage as composer attachments before sending.
 - Transcribes uploads with Groq's online speech-to-text API.
 - Uses Gemini only for text chat and translation after the transcript exists.
 - Converts/chunks larger videos with ffmpeg before transcription.
 - Optional shared password gate for private deployments.
 
 This project intentionally does not send uploaded audio to Gemini for transcription. The audio path uses a dedicated speech-to-text service so the transcript is created first, then Gemini can translate, summarize, or clean it in chat.
+
+Upload flow:
+
+1. Attach or drop an audio/video file.
+2. Add an optional prompt, such as "give me the transcript" or "translate this to English".
+3. Send once. The app transcribes first, then responds according to the prompt.
 
 ## Providers
 
