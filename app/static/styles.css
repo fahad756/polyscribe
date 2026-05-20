@@ -70,7 +70,7 @@ button {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 290px minmax(0, 1fr);
+  grid-template-columns: 268px minmax(0, 1fr);
   min-height: 100vh;
 }
 
@@ -79,27 +79,31 @@ button {
   color: #ffffff;
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  padding: 18px;
+  gap: 14px;
+  padding: 16px;
   min-height: 100vh;
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
 }
 
 .brand-mark {
-  width: 38px;
-  height: 38px;
+  width: 36px;
+  height: 36px;
   display: grid;
   place-items: center;
   border-radius: 8px;
   background: var(--gold);
   color: #18191b;
   font-weight: 800;
+}
+
+.brand strong {
+  font-size: 0.98rem;
 }
 
 .brand strong,
@@ -110,31 +114,33 @@ button {
 
 .brand span {
   color: rgba(255, 255, 255, 0.68);
-  font-size: 0.83rem;
+  font-size: 0.78rem;
   margin-top: 2px;
 }
 
 .new-chat-button {
-  height: 44px;
+  height: 38px;
   border-radius: 8px;
   background: #ffffff;
   color: #202124;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 7px;
+  font-size: 0.92rem;
   font-weight: 700;
+  line-height: 1;
 }
 
 .new-chat-button span {
-  font-size: 1.2rem;
+  font-size: 1.05rem;
   line-height: 1;
 }
 
 .chat-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
   overflow-y: auto;
   padding-right: 2px;
 }
@@ -142,13 +148,13 @@ button {
 .chat-item {
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 32px;
+  grid-template-columns: minmax(0, 1fr) 30px;
   align-items: center;
-  gap: 8px;
-  min-height: 42px;
+  gap: 6px;
+  min-height: 38px;
   border-radius: 8px;
   background: transparent;
-  padding: 4px;
+  padding: 3px;
 }
 
 .chat-item:hover,
@@ -159,12 +165,13 @@ button {
 
 .chat-open {
   min-width: 0;
-  min-height: 34px;
+  min-height: 31px;
   border-radius: 7px;
   background: transparent;
   color: rgba(255, 255, 255, 0.82);
-  padding: 0 8px;
+  padding: 0 7px;
   text-align: left;
+  font-size: 0.92rem;
 }
 
 .chat-item:hover .chat-open,
@@ -180,8 +187,8 @@ button {
 }
 
 .delete-chat {
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border-radius: 7px;
   background: transparent;
   color: rgba(255, 255, 255, 0.6);
@@ -205,11 +212,11 @@ button {
 }
 
 .topbar {
-  min-height: 68px;
+  min-height: 60px;
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 14px 24px;
+  gap: 12px;
+  padding: 11px 20px;
   border-bottom: 1px solid var(--line);
   background: color-mix(in srgb, var(--panel) 88%, transparent);
   backdrop-filter: blur(12px);
@@ -225,21 +232,22 @@ button {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 0.96rem;
 }
 
 .topbar span {
   color: var(--muted);
-  font-size: 0.86rem;
+  font-size: 0.78rem;
   margin-top: 2px;
 }
 
 .menu-button {
   display: none;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 8px;
   background: var(--panel-strong);
-  padding: 10px;
+  padding: 8px;
 }
 
 .menu-button span {
@@ -251,22 +259,40 @@ button {
 
 .theme-button {
   margin-left: auto;
-  min-width: 68px;
-  height: 38px;
+  width: 40px;
+  min-width: 40px;
+  height: 36px;
   border-radius: 8px;
   border: 1px solid var(--line);
   background: var(--panel-strong);
   color: var(--text);
+  display: grid;
+  place-items: center;
   font-weight: 800;
+  line-height: 1;
+  padding: 0;
+  transition: background 150ms ease, border-color 150ms ease, transform 150ms ease;
 }
 
 .theme-button:hover {
   background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--line));
+  transform: translateY(-1px);
+}
+
+.theme-icon {
+  display: block;
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.theme-label {
+  display: none;
 }
 
 .messages {
   overflow-y: auto;
-  padding: 30px min(6vw, 74px);
+  padding: 24px min(5vw, 56px);
 }
 
 .empty-state {
@@ -274,15 +300,15 @@ button {
   display: grid;
   align-content: center;
   justify-items: center;
-  gap: 18px;
+  gap: 16px;
   text-align: center;
-  max-width: 760px;
+  max-width: 700px;
   margin: 0 auto;
 }
 
 .empty-state h1 {
   margin: 0;
-  font-size: clamp(2rem, 7vw, 4.8rem);
+  font-size: clamp(1.9rem, 5.4vw, 4rem);
   line-height: 1;
   font-weight: 800;
 }
@@ -290,13 +316,13 @@ button {
 .empty-state p {
   margin: 0;
   color: var(--muted);
-  font-size: clamp(1rem, 2.4vw, 1.35rem);
+  font-size: clamp(0.96rem, 1.8vw, 1.17rem);
   line-height: 1.45;
 }
 
 .empty-logo {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   display: grid;
   place-items: center;
   border-radius: 8px;
@@ -307,13 +333,13 @@ button {
 }
 
 .empty-signal {
-  width: min(360px, 76vw);
-  height: 92px;
+  width: min(320px, 72vw);
+  height: 78px;
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   align-items: end;
-  gap: 10px;
-  padding: 18px;
+  gap: 9px;
+  padding: 15px;
   border-radius: 8px;
   border: 1px solid var(--line);
   background: color-mix(in srgb, var(--panel) 88%, transparent);
@@ -328,30 +354,30 @@ button {
 }
 
 .empty-signal span:nth-child(1) {
-  height: 34px;
+  height: 28px;
 }
 
 .empty-signal span:nth-child(2) {
-  height: 58px;
+  height: 48px;
 }
 
 .empty-signal span:nth-child(3) {
-  height: 42px;
+  height: 36px;
 }
 
 .empty-signal span:nth-child(4) {
-  height: 68px;
+  height: 56px;
 }
 
 .empty-signal span:nth-child(5) {
-  height: 30px;
+  height: 25px;
 }
 
 .message {
   display: flex;
-  gap: 12px;
-  margin: 0 auto 22px;
-  max-width: 920px;
+  gap: 10px;
+  margin: 0 auto 18px;
+  max-width: 860px;
 }
 
 .message.user {
@@ -359,12 +385,12 @@ button {
 }
 
 .avatar {
-  flex: 0 0 34px;
-  height: 34px;
+  flex: 0 0 32px;
+  height: 32px;
   border-radius: 8px;
   display: grid;
   place-items: center;
-  font-size: 0.8rem;
+  font-size: 0.76rem;
   font-weight: 800;
   background: var(--panel-strong);
   color: var(--text);
@@ -383,7 +409,7 @@ button {
 .message-meta {
   margin-bottom: 6px;
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
 }
 
 .message.user .message-meta {
@@ -393,9 +419,9 @@ button {
 .message-body {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  line-height: 1.56;
+  line-height: 1.54;
   border-radius: 8px;
-  padding: 14px 16px;
+  padding: 12px 14px;
   background: var(--panel);
   border: 1px solid var(--line);
   box-shadow: 0 8px 22px rgba(19, 22, 28, 0.05);
@@ -432,12 +458,12 @@ button {
 .composer-shell {
   border-top: 1px solid var(--line);
   background: color-mix(in srgb, var(--bg) 92%, transparent);
-  padding: 14px min(6vw, 74px) 18px;
+  padding: 12px min(5vw, 56px) 16px;
   backdrop-filter: blur(14px);
 }
 
 .upload-options {
-  max-width: 920px;
+  max-width: 860px;
   margin: 0 auto 8px;
   display: flex;
   justify-content: flex-end;
@@ -450,7 +476,7 @@ button {
 }
 
 .attachment-row {
-  max-width: 920px;
+  max-width: 860px;
   margin: 0 auto 8px;
 }
 
@@ -510,13 +536,13 @@ button {
 }
 
 .composer {
-  max-width: 920px;
+  max-width: 860px;
   margin: 0 auto;
-  min-height: 58px;
+  min-height: 54px;
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) auto;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
   align-items: end;
-  gap: 10px;
+  gap: 8px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
@@ -525,12 +551,12 @@ button {
 }
 
 .tool-button {
-  width: 42px;
-  height: 42px;
+  width: 38px;
+  height: 38px;
   border-radius: 8px;
   background: var(--panel-strong);
   color: var(--text);
-  font-size: 1.4rem;
+  font-size: 1.2rem;
   line-height: 1;
 }
 
@@ -544,16 +570,16 @@ button {
   resize: none;
   border: 0;
   outline: none;
-  padding: 10px 2px;
+  padding: 8px 2px;
   line-height: 1.45;
   color: var(--text);
   background: transparent;
 }
 
 .send-button {
-  min-height: 42px;
+  min-height: 38px;
   border-radius: 8px;
-  padding: 0 18px;
+  padding: 0 15px;
   background: var(--accent);
   color: #ffffff;
   font-weight: 800;
@@ -766,7 +792,9 @@ button {
   }
 
   .theme-button {
-    min-width: 62px;
+    width: 38px;
+    min-width: 38px;
+    height: 34px;
   }
 
   .messages {

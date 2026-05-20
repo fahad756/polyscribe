@@ -115,7 +115,7 @@ function renderMessages(messages = state.messages) {
 
     const avatar = document.createElement("div");
     avatar.className = "avatar";
-    avatar.textContent = message.role === "user" ? "You" : "AI";
+    avatar.textContent = message.role === "user" ? "You" : "P";
 
     const content = document.createElement("div");
     content.className = "message-content";
@@ -372,7 +372,10 @@ function applyTheme(theme) {
   const selected = theme === "dark" ? "dark" : "light";
   document.documentElement.dataset.theme = selected;
   localStorage.setItem("polyscribe-theme", selected);
-  els.themeButton.textContent = selected === "dark" ? "Light" : "Dark";
+  els.themeButton.innerHTML =
+    selected === "dark"
+      ? '<span class="theme-icon" aria-hidden="true">☀</span><span class="theme-label">Light</span>'
+      : '<span class="theme-icon" aria-hidden="true">☾</span><span class="theme-label">Dark</span>';
   els.themeButton.setAttribute(
     "aria-label",
     selected === "dark" ? "Switch to light mode" : "Switch to dark mode",
