@@ -305,18 +305,26 @@ button {
   min-height: 30px;
   display: grid;
   place-items: center;
-  border-bottom: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
-  background: color-mix(in srgb, var(--accent-soft) 78%, var(--panel) 22%);
-  color: var(--accent-strong);
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
   padding: 5px 14px;
   text-align: center;
   font-size: 0.78rem;
   font-weight: 800;
   line-height: 1.3;
   letter-spacing: 0;
+  visibility: hidden;
 }
 
-[data-theme="dark"] .demo-banner {
+.demo-banner.is-visible {
+  visibility: visible;
+  border-bottom-color: color-mix(in srgb, var(--line) 72%, transparent);
+  background: color-mix(in srgb, var(--accent-soft) 78%, var(--panel) 22%);
+  color: var(--accent-strong);
+}
+
+[data-theme="dark"] .demo-banner.is-visible {
   background: color-mix(in srgb, var(--accent-soft) 78%, var(--panel) 22%);
   color: #8ee1d5;
 }

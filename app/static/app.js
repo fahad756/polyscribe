@@ -131,11 +131,15 @@ function updateAccessState(access) {
   };
 
   const isDemo = state.access.authenticated && state.access.role === "demo";
-  els.demoBanner.hidden = !isDemo;
+  els.demoBanner.classList.toggle("is-visible", isDemo);
+  els.demoBanner.setAttribute("aria-hidden", isDemo ? "false" : "true");
   if (isDemo) {
     const remaining = Math.max(Number(state.access.demoRemaining || 0), 0);
     els.demoBanner.textContent =
       `This is a demo version with limited access. ${remaining} of ${state.access.demoLimit} prompts remaining.`;
+  } else {
+    els.demoBanner.textContent =
+      `This is a demo version with limited access. ${state.access.demoLimit} of ${state.access.demoLimit} prompts remaining.`;
   }
   updateControls();
 }
