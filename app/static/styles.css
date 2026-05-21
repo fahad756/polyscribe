@@ -246,7 +246,7 @@ button {
   height: 100svh;
   min-height: 0;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.36);
 }
@@ -285,27 +285,6 @@ button {
   margin-top: 2px;
 }
 
-.demo-badge {
-  min-height: 30px;
-  display: inline-flex;
-  align-items: center;
-  border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--accent-strong);
-  padding: 0 10px;
-  font-size: 0.76rem;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
-.demo-badge:not([hidden]) {
-  margin-left: auto;
-}
-
-.demo-badge:not([hidden]) + .theme-button {
-  margin-left: 0;
-}
-
 .menu-button {
   display: none;
   width: 36px;
@@ -320,6 +299,26 @@ button {
   height: 2px;
   background: var(--text);
   margin: 4px 0;
+}
+
+.demo-banner {
+  min-height: 30px;
+  display: grid;
+  place-items: center;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  background: color-mix(in srgb, var(--accent-soft) 78%, var(--panel) 22%);
+  color: var(--accent-strong);
+  padding: 5px 14px;
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.3;
+  letter-spacing: 0;
+}
+
+[data-theme="dark"] .demo-banner {
+  background: color-mix(in srgb, var(--accent-soft) 78%, var(--panel) 22%);
+  color: #8ee1d5;
 }
 
 .theme-button {
@@ -421,6 +420,105 @@ button {
   transform: translateX(40px);
   background: #eef1ff;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.32);
+}
+
+.account-menu {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.account-button {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--panel-strong);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px rgba(32, 33, 36, 0.08);
+}
+
+.account-button:hover,
+.account-button[aria-expanded="true"] {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.account-button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 32%, transparent);
+  outline-offset: 2px;
+}
+
+.account-button svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.account-dropdown {
+  position: absolute;
+  top: calc(100% + 9px);
+  right: 0;
+  z-index: 24;
+  width: 210px;
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  padding: 6px;
+}
+
+.account-menu-item {
+  min-width: 0;
+  min-height: 44px;
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  padding: 7px 9px;
+  text-align: left;
+}
+
+.account-menu-item:hover:not(:disabled) {
+  background: var(--panel-strong);
+}
+
+.account-menu-item span,
+.account-menu-item small {
+  display: block;
+}
+
+.account-menu-item span {
+  color: var(--text);
+  font-size: 0.88rem;
+  font-weight: 800;
+  max-width: none;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  margin-top: 0;
+}
+
+.account-menu-item small {
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
+.account-menu-item:disabled {
+  cursor: not-allowed;
+  opacity: 0.56;
+}
+
+.account-menu-item.is-danger span {
+  color: var(--warn);
 }
 
 .messages {
@@ -1191,6 +1289,15 @@ button {
     height: 36px;
   }
 
+  .account-button {
+    width: 36px;
+    height: 36px;
+  }
+
+  .account-dropdown {
+    width: min(210px, calc(100vw - 20px));
+  }
+
   .theme-symbol {
     width: 28px;
     height: 28px;
@@ -1207,6 +1314,12 @@ button {
 
   .messages {
     padding: 22px 14px;
+  }
+
+  .demo-banner {
+    min-height: 28px;
+    padding: 5px 12px;
+    font-size: 0.74rem;
   }
 
   .empty-state {
@@ -1287,6 +1400,16 @@ button {
   .theme-button {
     width: 68px;
     min-width: 68px;
+  }
+
+  .account-button {
+    width: 34px;
+    height: 34px;
+  }
+
+  .account-button svg {
+    width: 17px;
+    height: 17px;
   }
 
   [data-theme="dark"] .theme-thumb {

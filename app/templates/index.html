@@ -105,7 +105,6 @@
             <strong id="activeChatTitle">New chat</strong>
             <span id="statusText">Ready</span>
           </div>
-          <div class="demo-badge" id="demoBadge" hidden>Demo: 5 prompts only</div>
           <button class="theme-button" id="themeButton" type="button" aria-label="Toggle dark mode" aria-pressed="false">
             <span class="theme-thumb" aria-hidden="true"></span>
             <span class="theme-symbol theme-sun" aria-hidden="true">
@@ -120,7 +119,33 @@
               </svg>
             </span>
           </button>
+          <div class="account-menu" id="accountMenu">
+            <button class="account-button" id="accountButton" type="button" aria-label="Account settings" aria-haspopup="menu" aria-expanded="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M12 15.3A3.3 3.3 0 1 0 12 8.7a3.3 3.3 0 0 0 0 6.6Z"></path>
+                <path d="M19.4 15a1.8 1.8 0 0 0 .4 2l.1.1a2 2 0 0 1-2.8 2.8l-.1-.1a1.8 1.8 0 0 0-2-.4 1.8 1.8 0 0 0-1 1.6v.2a2 2 0 0 1-4 0V21a1.8 1.8 0 0 0-1-1.6 1.8 1.8 0 0 0-2 .4l-.1.1a2 2 0 0 1-2.8-2.8l.1-.1a1.8 1.8 0 0 0 .4-2 1.8 1.8 0 0 0-1.6-1H3a2 2 0 0 1 0-4h.2a1.8 1.8 0 0 0 1.6-1 1.8 1.8 0 0 0-.4-2l-.1-.1a2 2 0 0 1 2.8-2.8l.1.1a1.8 1.8 0 0 0 2 .4 1.8 1.8 0 0 0 1-1.6V3a2 2 0 0 1 4 0v.2a1.8 1.8 0 0 0 1 1.6 1.8 1.8 0 0 0 2-.4l.1-.1a2 2 0 0 1 2.8 2.8l-.1.1a1.8 1.8 0 0 0-.4 2 1.8 1.8 0 0 0 1.6 1h.2a2 2 0 0 1 0 4h-.2a1.8 1.8 0 0 0-1.6 1Z"></path>
+              </svg>
+            </button>
+            <div class="account-dropdown" id="accountDropdown" role="menu" hidden>
+              <button class="account-menu-item" type="button" role="menuitem" disabled>
+                <span>About</span>
+                <small>Coming soon</small>
+              </button>
+              <button class="account-menu-item" type="button" role="menuitem" disabled>
+                <span>Personalize</span>
+                <small>Coming soon</small>
+              </button>
+              <button class="account-menu-item is-danger" id="logoutButton" type="button" role="menuitem">
+                <span>Logout</span>
+                <small>Return to access screen</small>
+              </button>
+            </div>
+          </div>
         </header>
+
+        <div class="demo-banner" id="demoBanner" role="status" hidden>
+          This is a demo version with limited access.
+        </div>
 
         <section class="messages" id="messageList" aria-live="polite">
           <div class="empty-state" id="emptyState">

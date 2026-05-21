@@ -48,6 +48,9 @@ const els = {
   recordOptionMeta: document.getElementById("recordOptionMeta"),
   quickRecordButton: document.getElementById("quickRecordButton"),
   sendButton: document.getElementById("sendButton"),
+  accountButton: document.getElementById("accountButton"),
+  accountDropdown: document.getElementById("accountDropdown"),
+  logoutButton: document.getElementById("logoutButton"),
   dropOverlay: document.getElementById("dropOverlay"),
   sourceToast: document.getElementById("sourceToast"),
   accessModal: document.getElementById("accessModal"),
@@ -62,7 +65,7 @@ const els = {
   demoRememberInput: document.getElementById("demoRememberInput"),
   adminAccessError: document.getElementById("adminAccessError"),
   demoAccessError: document.getElementById("demoAccessError"),
-  demoBadge: document.getElementById("demoBadge"),
+  demoBanner: document.getElementById("demoBanner"),
   limitModal: document.getElementById("limitModal"),
   limitCloseButton: document.getElementById("limitCloseButton"),
   welcomeModal: document.getElementById("welcomeModal"),
@@ -104,6 +107,8 @@ function updateControls() {
   els.recordOption.disabled = locked && !state.recording;
   els.quickRecordButton.disabled = locked && !state.recording;
   els.newChatButton.disabled = locked || state.recording;
+  els.accountButton.disabled = !state.access.authenticated;
+  if (!state.access.authenticated) setAccountMenu(false);
   for (const button of document.querySelectorAll(".chat-open, .delete-chat")) {
     button.disabled = locked || state.recording;
   }
@@ -126,10 +131,11 @@ function updateAccessState(access) {
   };
 
   const isDemo = state.access.authenticated && state.access.role === "demo";
-  els.demoBadge.hidden = !isDemo;
+  els.demoBanner.hidden = !isDemo;
   if (isDemo) {
     const remaining = Math.max(Number(state.access.demoRemaining || 0), 0);
-    els.demoBadge.textContent = `Demo: ${remaining} of ${state.access.demoLimit} prompts left`;
+    els.demoBanner.textContent =
+      `This is a demo version with limited access. ${remaining} of ${state.access.demoLimit} prompts remaining.`;
   }
   updateControls();
 }
@@ -202,6 +208,30 @@ async function startAccess(mode, { password = "", name = "", remember = false } 
   });
   unlockAccess(data.access);
   return data.access;
+}
+
+function setAccountMenu(open) {
+  els.accountDropdown.hidden = !open;
+  els.accountButton.setAttribute("aria-expanded", open ? "true" : "false");
+}
+
+async function logoutAccess() {
+  setAccountMenu(false);
+  await api("/api/access/logout", { method: "POST" }).catch(() => null);
+  state.chats = [];
+  state.currentChatId = null;
+  state.messages = [];
+  state.selectedFile = null;
+  state.selectedFileMeta = null;
+  state.appStarted = false;
+  updateAccessState({ authenticated: false, role: "", demoLimit: state.access.demoLimit });
+  els.messageInput.value = "";
+  resizeTextarea();
+  renderAttachment();
+  renderChats();
+  renderMessages();
+  updateActiveTitle();
+  showAccessGate();
 }
 
 function currentChat() {
@@ -1022,9 +1052,26 @@ function bindEvents() {
     }
     await startRecording();
   });
-  document.addEventListener("click", () => setAttachMenu(false));
+  els.accountButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (!state.access.authenticated) return;
+    setAttachMenu(false);
+    setAccountMenu(els.accountDropdown.hidden);
+  });
+  els.accountDropdown.addEventListener("click", (event) => {
+    event.stopPropagation();
+  });
+  els.logoutButton.addEventListener("click", logoutAccess);
+  document.addEventListener("click", () => {
+    setAttachMenu(false);
+    setAccountMenu(false);
+  });
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") setAttachMenu(false);
+    if (event.key === "Escape") {
+      setAttachMenu(false);
+      setAccountMenu(false);
+      if (!els.limitModal.hidden) closeLimitModal();
+    }
   });
   els.fileInput.addEventListener("change", () => stageFile(els.fileInput.files[0]));
   els.newChatButton.addEventListener("click", startNewChat);
