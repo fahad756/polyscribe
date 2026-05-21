@@ -8,6 +8,9 @@ Python-first web app for chat-style transcription and translation workflows.
 - Drag-drop or click upload for audio/video files.
 - Browser microphone recording that stages captured audio as an attachment.
 - Audio/video files stage as composer attachments before sending.
+- Admin/demo access gate before the chat UI is available.
+- Server-side demo limit of 5 prompts per public IP/network.
+- Per-session chat ownership so one visitor cannot see another visitor's chats.
 - Transcribes uploads with Groq's online speech-to-text API.
 - Uses Gemini only for text chat and translation after the transcript exists.
 - Retries temporary Gemini capacity errors and can fall back to a lighter model.
@@ -46,6 +49,8 @@ Copy-Item .env.example .env
 Edit `.env`:
 
 ```env
+ADMIN_PASSWORD=pakistan123
+DEMO_PROMPT_LIMIT=5
 GEMINI_API_KEY=<your-gemini-api-key>
 GEMINI_FALLBACK_MODELS=gemini-2.5-flash-lite
 GROQ_API_KEY=<your-groq-api-key>
@@ -66,7 +71,8 @@ Do not commit `.env`. It is ignored by git. In your hosting provider, add these 
 ```env
 APP_ENV=production
 SECRET_KEY=<long-random-secret>
-APP_PASSWORD=<optional-shared-password>
+ADMIN_PASSWORD=pakistan123
+DEMO_PROMPT_LIMIT=5
 CHAT_PROVIDER=gemini
 GEMINI_API_KEY=<private-host-env-var>
 GEMINI_FALLBACK_MODELS=gemini-2.5-flash-lite
@@ -79,7 +85,7 @@ UPLOAD_DIR=/data/uploads
 KEEP_UPLOADS=false
 ```
 
-For a public demo, set `APP_PASSWORD` or add platform-level rate limits. Free API limits can still be exhausted by public traffic.
+For a public demo, keep `DEMO_PROMPT_LIMIT` low and add platform-level rate limits. Free API limits can still be exhausted by public traffic.
 
 ## Docker
 

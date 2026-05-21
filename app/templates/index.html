@@ -23,7 +23,61 @@
       }
     </script>
   </head>
-  <body>
+  <body class="access-locked">
+    <div class="access-modal" id="accessModal" role="dialog" aria-modal="true" aria-labelledby="accessTitle">
+      <section class="access-card">
+        <div class="access-brand">
+          <div class="brand-mark">P</div>
+          <div>
+            <h1 id="accessTitle">{{ app_name }}</h1>
+            <p>Choose how you want to continue.</p>
+          </div>
+        </div>
+
+        <div class="access-step" id="accessChoice">
+          <button class="access-choice" id="adminChoice" type="button">
+            <strong>Admin</strong>
+            <span>Unlimited private access</span>
+          </button>
+          <button class="access-choice" id="demoChoice" type="button">
+            <strong>Demo</strong>
+            <span>Try {{ app_name }} with 5 prompts</span>
+          </button>
+        </div>
+
+        <form class="access-step" id="adminAccessForm" hidden>
+          <button class="back-button" type="button" data-access-back>Back</button>
+          <h2>Admin access</h2>
+          <label>
+            <span>Password</span>
+            <input id="adminPasswordInput" type="password" autocomplete="current-password" required>
+          </label>
+          <label class="remember-row">
+            <input id="adminRememberInput" type="checkbox">
+            <span>Remember my settings on this device</span>
+          </label>
+          <p class="access-error" id="adminAccessError" role="alert"></p>
+          <button class="send-button" type="submit">Continue</button>
+        </form>
+
+        <form class="access-step" id="demoAccessForm" hidden>
+          <button class="back-button" type="button" data-access-back>Back</button>
+          <h2>Demo access</h2>
+          <p class="demo-limit-line">Demo version includes 5 prompts only.</p>
+          <label>
+            <span>Your name</span>
+            <input id="demoNameInput" type="text" autocomplete="name" maxlength="40" required>
+          </label>
+          <label class="remember-row">
+            <input id="demoRememberInput" type="checkbox">
+            <span>Remember my settings on this device</span>
+          </label>
+          <p class="access-error" id="demoAccessError" role="alert"></p>
+          <button class="send-button" type="submit">Start demo</button>
+        </form>
+      </section>
+    </div>
+
     <div class="app-shell">
       <aside class="sidebar" id="sidebar">
         <div class="brand">
@@ -51,6 +105,7 @@
             <strong id="activeChatTitle">New chat</strong>
             <span id="statusText">Ready</span>
           </div>
+          <div class="demo-badge" id="demoBadge" hidden>Demo: 5 prompts only</div>
           <button class="theme-button" id="themeButton" type="button" aria-label="Toggle dark mode" aria-pressed="false">
             <span class="theme-thumb" aria-hidden="true"></span>
             <span class="theme-symbol theme-sun" aria-hidden="true">
@@ -126,6 +181,13 @@
       </div>
       <div class="source-toast" id="sourceToast" role="status" aria-live="polite">
         No source click, you naughty naught.
+      </div>
+      <div class="limit-modal" id="limitModal" aria-labelledby="limitTitle" role="dialog" aria-modal="true" hidden>
+        <section class="limit-card">
+          <h2 id="limitTitle">Demo limit reached</h2>
+          <p>You have used the 5 demo prompts available for this network. Contact the admin for further access.</p>
+          <button class="send-button" id="limitCloseButton" type="button">Close</button>
+        </section>
       </div>
       <div class="welcome-modal" id="welcomeModal" aria-labelledby="welcomeTitle" role="dialog" aria-modal="true" hidden>
         <form class="welcome-card" id="welcomeForm">

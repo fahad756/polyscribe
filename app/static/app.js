@@ -13,6 +13,14 @@ const state = {
   recordingTimerId: null,
   recordingStream: null,
   mediaRecorder: null,
+  access: {
+    authenticated: false,
+    role: "",
+    demoLimit: 5,
+    demoUsed: 0,
+    demoRemaining: null,
+  },
+  appStarted: false,
 };
 
 const els = {
@@ -42,6 +50,21 @@ const els = {
   sendButton: document.getElementById("sendButton"),
   dropOverlay: document.getElementById("dropOverlay"),
   sourceToast: document.getElementById("sourceToast"),
+  accessModal: document.getElementById("accessModal"),
+  accessChoice: document.getElementById("accessChoice"),
+  adminChoice: document.getElementById("adminChoice"),
+  demoChoice: document.getElementById("demoChoice"),
+  adminAccessForm: document.getElementById("adminAccessForm"),
+  demoAccessForm: document.getElementById("demoAccessForm"),
+  adminPasswordInput: document.getElementById("adminPasswordInput"),
+  adminRememberInput: document.getElementById("adminRememberInput"),
+  demoNameInput: document.getElementById("demoNameInput"),
+  demoRememberInput: document.getElementById("demoRememberInput"),
+  adminAccessError: document.getElementById("adminAccessError"),
+  demoAccessError: document.getElementById("demoAccessError"),
+  demoBadge: document.getElementById("demoBadge"),
+  limitModal: document.getElementById("limitModal"),
+  limitCloseButton: document.getElementById("limitCloseButton"),
   welcomeModal: document.getElementById("welcomeModal"),
   welcomeForm: document.getElementById("welcomeForm"),
   nameInput: document.getElementById("nameInput"),
@@ -58,14 +81,11 @@ async function api(path, options = {}) {
     },
   });
 
-  if (response.status === 401) {
-    window.location.href = "/login";
-    return null;
-  }
-
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.detail || `Request failed with status ${response.status}`);
+    const error = new Error(data.detail || `Request failed with status ${response.status}`);
+    error.status = response.status;
+    throw error;
   }
   return data;
 }
@@ -77,7 +97,7 @@ function setBusy(value, label = "Ready") {
 }
 
 function updateControls() {
-  const locked = state.busy || state.creatingChat;
+  const locked = state.busy || state.creatingChat || !state.access.authenticated;
   els.sendButton.disabled = locked || state.recording;
   els.attachButton.disabled = locked;
   els.uploadOption.disabled = locked || state.recording;
@@ -94,6 +114,94 @@ function scrollToBottom() {
   requestAnimationFrame(() => {
     els.messageList.scrollTop = els.messageList.scrollHeight;
   });
+}
+
+function updateAccessState(access) {
+  state.access = {
+    authenticated: Boolean(access?.authenticated),
+    role: access?.role || "",
+    demoLimit: Number(access?.demoLimit || 5),
+    demoUsed: Number(access?.demoUsed || 0),
+    demoRemaining: access?.demoRemaining ?? null,
+  };
+
+  const isDemo = state.access.authenticated && state.access.role === "demo";
+  els.demoBadge.hidden = !isDemo;
+  if (isDemo) {
+    const remaining = Math.max(Number(state.access.demoRemaining || 0), 0);
+    els.demoBadge.textContent = `Demo: ${remaining} of ${state.access.demoLimit} prompts left`;
+  }
+  updateControls();
+}
+
+function showAccessGate() {
+  document.body.classList.add("access-locked");
+  els.accessModal.hidden = false;
+  showAccessStep("choice");
+}
+
+function unlockAccess(access) {
+  updateAccessState(access);
+  if (!state.access.authenticated) {
+    showAccessGate();
+    return;
+  }
+  document.body.classList.remove("access-locked");
+  els.accessModal.hidden = true;
+}
+
+function showAccessStep(step) {
+  els.accessChoice.hidden = step !== "choice";
+  els.adminAccessForm.hidden = step !== "admin";
+  els.demoAccessForm.hidden = step !== "demo";
+  els.adminAccessError.textContent = "";
+  els.demoAccessError.textContent = "";
+
+  if (step === "admin") requestAnimationFrame(() => els.adminPasswordInput.focus());
+  if (step === "demo") {
+    if (!els.demoNameInput.value.trim()) {
+      els.demoNameInput.value = localStorage.getItem("polyscribe-name") || "";
+    }
+    requestAnimationFrame(() => els.demoNameInput.focus());
+  }
+}
+
+async function canSubmitPrompt() {
+  if (!state.access.authenticated) {
+    showAccessGate();
+    return false;
+  }
+  if (state.access.role !== "demo") return true;
+  await refreshAccessStatus().catch(() => null);
+  const remaining = Number(state.access.demoRemaining ?? state.access.demoLimit);
+  if (remaining > 0) return true;
+  showLimitModal();
+  return false;
+}
+
+function showLimitModal() {
+  els.limitModal.hidden = false;
+  requestAnimationFrame(() => els.limitCloseButton.focus());
+}
+
+function closeLimitModal() {
+  els.limitModal.hidden = true;
+  els.messageInput.focus();
+}
+
+async function refreshAccessStatus() {
+  const data = await api("/api/access/status");
+  updateAccessState(data.access);
+  return data.access;
+}
+
+async function startAccess(mode, { password = "", name = "", remember = false } = {}) {
+  const data = await api("/api/access/start", {
+    method: "POST",
+    body: JSON.stringify({ mode, password, name, remember }),
+  });
+  unlockAccess(data.access);
+  return data.access;
 }
 
 function currentChat() {
@@ -290,6 +398,10 @@ function renderAttachment() {
 }
 
 function stageFile(file, meta = null) {
+  if (!state.access.authenticated) {
+    showAccessGate();
+    return;
+  }
   if (!file || state.busy || state.recording) return;
   state.selectedFile = file;
   state.selectedFileMeta = meta;
@@ -331,6 +443,7 @@ function updateActiveTitle() {
 async function refreshChats() {
   const data = await api("/api/chats");
   if (!data) return;
+  if (data.access) updateAccessState(data.access);
   state.chats = data.chats;
   renderChats();
   updateActiveTitle();
@@ -362,6 +475,7 @@ async function createChat() {
   try {
     const data = await api("/api/chats", { method: "POST" });
     if (!data) return null;
+    if (data.access) updateAccessState(data.access);
     state.currentChatId = data.chat.id;
     updateActiveTitle();
     return data.chat;
@@ -380,6 +494,7 @@ async function selectChat(chatId) {
   updateActiveTitle();
   const data = await api(`/api/chats/${chatId}`);
   if (!data) return;
+  if (data.access) updateAccessState(data.access);
   state.messages = data.messages;
   updateChatInList(data.chat);
   renderChats();
@@ -390,6 +505,7 @@ async function selectChat(chatId) {
 async function deleteChat(chatId) {
   if (state.busy || state.creatingChat || state.recording) return;
   await api(`/api/chats/${chatId}`, { method: "DELETE" });
+  await refreshAccessStatus().catch(() => {});
   state.chats = state.chats.filter((chat) => chat.id !== chatId);
   if (state.currentChatId === chatId) {
     if (state.chats.length) {
@@ -415,6 +531,15 @@ function updateChatInList(chat) {
 }
 
 function showError(error) {
+  if (error.status === 401) {
+    showAccessGate();
+    return;
+  }
+  if (error.status === 429) {
+    refreshAccessStatus().catch(() => {});
+    showLimitModal();
+    return;
+  }
   const message = {
     id: `error-${Date.now()}`,
     role: "assistant",
@@ -471,6 +596,10 @@ function recordingFilename(mimeType) {
 }
 
 async function startRecording() {
+  if (!state.access.authenticated) {
+    showAccessGate();
+    return;
+  }
   if (state.busy || state.creatingChat || state.recording) return;
   if (!recordingSupported()) {
     showError(new Error("Microphone recording is not supported in this browser."));
@@ -580,6 +709,7 @@ async function syncCurrentChat() {
   try {
     const data = await api(`/api/chats/${state.currentChatId}`);
     if (!data) return;
+    if (data.access) updateAccessState(data.access);
     state.messages = data.messages;
     const shouldAnimateTitle = updateChatInList(data.chat);
     renderChats();
@@ -602,6 +732,7 @@ async function sendMessage(event) {
   event.preventDefault();
   const content = els.messageInput.value.trim();
   if ((!content && !state.selectedFile) || state.busy || state.recording) return;
+  if (!(await canSubmitPrompt())) return;
   setAttachMenu(false);
   if (state.selectedFile) {
     await uploadFile(state.selectedFile, content);
@@ -627,6 +758,7 @@ async function sendMessage(event) {
       body: JSON.stringify({ content }),
     });
     if (!data) return;
+    if (data.access) updateAccessState(data.access);
     state.messages = data.messages;
     const shouldAnimateTitle = updateChatInList(data.chat);
     renderChats();
@@ -643,6 +775,7 @@ async function sendMessage(event) {
 
 async function uploadFile(file, prompt = "") {
   if (!file || state.busy || state.recording) return;
+  if (!(await canSubmitPrompt())) return;
   if (!state.currentChatId) {
     const chat = await createChat();
     if (!chat) return;
@@ -671,6 +804,7 @@ async function uploadFile(file, prompt = "") {
       body,
     });
     if (!data) return;
+    if (data.access) updateAccessState(data.access);
     state.messages = data.messages;
     const shouldAnimateTitle = updateChatInList(data.chat);
     renderChats();
@@ -745,6 +879,56 @@ function installWelcomeFlow() {
     els.welcomeModal.hidden = true;
     applyVisitorName(name, true);
   });
+}
+
+function installAccessFlow() {
+  els.adminChoice.addEventListener("click", () => showAccessStep("admin"));
+  els.demoChoice.addEventListener("click", () => showAccessStep("demo"));
+  for (const button of document.querySelectorAll("[data-access-back]")) {
+    button.addEventListener("click", () => showAccessStep("choice"));
+  }
+
+  els.adminAccessForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    els.adminAccessError.textContent = "";
+    const password = els.adminPasswordInput.value;
+    if (!password.trim()) {
+      els.adminPasswordInput.focus();
+      return;
+    }
+    try {
+      await startAccess("admin", {
+        password,
+        remember: els.adminRememberInput.checked,
+      });
+      await startUnlockedApp();
+    } catch (error) {
+      els.adminAccessError.textContent = error.message || "Could not start admin access.";
+    }
+  });
+
+  els.demoAccessForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    els.demoAccessError.textContent = "";
+    const name = els.demoNameInput.value.trim();
+    if (!name) {
+      els.demoNameInput.focus();
+      return;
+    }
+    try {
+      localStorage.setItem("polyscribe-name", name);
+      await startAccess("demo", {
+        name,
+        remember: els.demoRememberInput.checked,
+      });
+      applyVisitorName(name, true);
+      await startUnlockedApp();
+    } catch (error) {
+      els.demoAccessError.textContent = error.message || "Could not start demo access.";
+    }
+  });
+
+  els.limitCloseButton.addEventListener("click", closeLimitModal);
 }
 
 function showSourceToast() {
@@ -846,19 +1030,40 @@ function bindEvents() {
   els.newChatButton.addEventListener("click", startNewChat);
   els.menuButton.addEventListener("click", () => els.sidebar.classList.toggle("is-open"));
 
-  installWelcomeFlow();
+  installAccessFlow();
   installThemeToggle();
   installSourceGuard();
   installDragAndDrop();
 }
 
-async function boot() {
-  bindEvents();
+async function startUnlockedApp() {
+  if (state.appStarted) {
+    await refreshChats();
+    return;
+  }
+
+  state.appStarted = true;
+  installWelcomeFlow();
   await refreshChats();
   if (state.chats.length) {
     await selectChat(state.chats[0].id);
   } else {
     openDraftChat({ focus: false });
+  }
+}
+
+async function boot() {
+  bindEvents();
+  try {
+    const access = await refreshAccessStatus();
+    if (!access?.authenticated) {
+      showAccessGate();
+      return;
+    }
+    unlockAccess(access);
+    await startUnlockedApp();
+  } catch {
+    showAccessGate();
   }
 }
 

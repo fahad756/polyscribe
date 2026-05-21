@@ -106,6 +106,7 @@ def init_db(settings: Settings | None = None) -> None:
             """
             CREATE TABLE IF NOT EXISTS chats (
                 id TEXT PRIMARY KEY,
+                owner_id TEXT NOT NULL DEFAULT 'legacy',
                 title TEXT NOT NULL,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
@@ -124,7 +125,25 @@ def init_db(settings: Settings | None = None) -> None:
 
             CREATE INDEX IF NOT EXISTS idx_messages_chat_created
                 ON messages(chat_id, created_at);
+
+            CREATE TABLE IF NOT EXISTS demo_usage (
+                usage_key TEXT PRIMARY KEY,
+                prompt_count INTEGER NOT NULL DEFAULT 0,
+                updated_at TEXT NOT NULL
+            );
             """
+        )
+        columns = {
+            row["name"]
+            for row in connection.execute("PRAGMA table_info(chats)").fetchall()
+        }
+        if "owner_id" not in columns:
+            connection.execute(
+                "ALTER TABLE chats ADD COLUMN owner_id TEXT NOT NULL DEFAULT 'legacy'"
+            )
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_chats_owner_updated "
+            "ON chats(owner_id, updated_at)"
         )
 
 
@@ -225,27 +244,31 @@ def _derive_title(content: str, kind: str = "text", metadata: dict[str, Any] | N
     return _derive_text_title(content)
 
 
-def create_chat(title: str = DEFAULT_TITLE) -> dict[str, Any]:
+def create_chat(owner_id: str, title: str = DEFAULT_TITLE) -> dict[str, Any]:
     chat_id = uuid.uuid4().hex
     now = _now()
     with _connect() as connection:
         connection.execute(
-            "INSERT INTO chats (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)",
-            (chat_id, title, now, now),
+            """
+            INSERT INTO chats (id, owner_id, title, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (chat_id, owner_id, title, now, now),
         )
-    chat = get_chat(chat_id)
+    chat = get_chat(chat_id, owner_id)
     if chat is None:
         raise RuntimeError("Chat creation failed")
     return chat
 
 
-def list_chats(limit: int = 100) -> list[dict[str, Any]]:
+def list_chats(owner_id: str, limit: int = 100) -> list[dict[str, Any]]:
     with _connect() as connection:
         rows = connection.execute(
             """
             SELECT c.id, c.title, c.created_at, c.updated_at
             FROM chats c
-            WHERE EXISTS (
+            WHERE c.owner_id = ?
+            AND EXISTS (
                 SELECT 1
                 FROM messages m
                 WHERE m.chat_id = c.id
@@ -253,42 +276,51 @@ def list_chats(limit: int = 100) -> list[dict[str, Any]]:
             ORDER BY c.updated_at DESC
             LIMIT ?
             """,
-            (limit,),
+            (owner_id, limit),
         ).fetchall()
     return [dict(row) for row in rows]
 
 
-def get_chat(chat_id: str) -> dict[str, Any] | None:
+def get_chat(chat_id: str, owner_id: str) -> dict[str, Any] | None:
     with _connect() as connection:
         row = connection.execute(
-            "SELECT id, title, created_at, updated_at FROM chats WHERE id = ?",
-            (chat_id,),
+            """
+            SELECT id, title, created_at, updated_at
+            FROM chats
+            WHERE id = ? AND owner_id = ?
+            """,
+            (chat_id, owner_id),
         ).fetchone()
     return _row_to_dict(row)
 
 
-def delete_chat(chat_id: str) -> bool:
+def delete_chat(chat_id: str, owner_id: str) -> bool:
     with _connect() as connection:
-        result = connection.execute("DELETE FROM chats WHERE id = ?", (chat_id,))
+        result = connection.execute(
+            "DELETE FROM chats WHERE id = ? AND owner_id = ?",
+            (chat_id, owner_id),
+        )
     return result.rowcount > 0
 
 
-def list_messages(chat_id: str) -> list[dict[str, Any]]:
+def list_messages(chat_id: str, owner_id: str) -> list[dict[str, Any]]:
     with _connect() as connection:
         rows = connection.execute(
             """
-            SELECT id, chat_id, role, kind, content, metadata, created_at
-            FROM messages
-            WHERE chat_id = ?
-            ORDER BY created_at ASC
+            SELECT m.id, m.chat_id, m.role, m.kind, m.content, m.metadata, m.created_at
+            FROM messages m
+            INNER JOIN chats c ON c.id = m.chat_id
+            WHERE m.chat_id = ? AND c.owner_id = ?
+            ORDER BY m.created_at ASC
             """,
-            (chat_id,),
+            (chat_id, owner_id),
         ).fetchall()
     return [_row_to_dict(row) for row in rows if row is not None]
 
 
 def add_message(
     chat_id: str,
+    owner_id: str,
     role: str,
     content: str,
     kind: str = "text",
@@ -301,8 +333,8 @@ def add_message(
 
     with _connect() as connection:
         chat = connection.execute(
-            "SELECT title FROM chats WHERE id = ?",
-            (chat_id,),
+            "SELECT title FROM chats WHERE id = ? AND owner_id = ?",
+            (chat_id, owner_id),
         ).fetchone()
         if chat is None:
             raise ValueError("Chat not found")
@@ -339,3 +371,58 @@ def add_message(
     if message is None:
         raise RuntimeError("Message creation failed")
     return message
+
+
+def demo_usage(usage_key: str) -> int:
+    with _connect() as connection:
+        row = connection.execute(
+            "SELECT prompt_count FROM demo_usage WHERE usage_key = ?",
+            (usage_key,),
+        ).fetchone()
+    if row is None:
+        return 0
+    return int(row["prompt_count"])
+
+
+def consume_demo_prompt(usage_key: str, limit: int) -> dict[str, int | bool]:
+    now = _now()
+    limit = max(limit, 0)
+    with _connect() as connection:
+        row = connection.execute(
+            "SELECT prompt_count FROM demo_usage WHERE usage_key = ?",
+            (usage_key,),
+        ).fetchone()
+        current = int(row["prompt_count"]) if row is not None else 0
+        if current >= limit:
+            return {
+                "allowed": False,
+                "used": current,
+                "remaining": 0,
+                "limit": limit,
+            }
+
+        next_count = current + 1
+        if row is None:
+            connection.execute(
+                """
+                INSERT INTO demo_usage (usage_key, prompt_count, updated_at)
+                VALUES (?, ?, ?)
+                """,
+                (usage_key, next_count, now),
+            )
+        else:
+            connection.execute(
+                """
+                UPDATE demo_usage
+                SET prompt_count = ?, updated_at = ?
+                WHERE usage_key = ?
+                """,
+                (next_count, now, usage_key),
+            )
+
+    return {
+        "allowed": True,
+        "used": next_count,
+        "remaining": max(limit - next_count, 0),
+        "limit": limit,
+    }

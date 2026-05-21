@@ -102,6 +102,9 @@ class Settings:
     request_timeout_seconds: int
     max_chat_context_chars: int
     app_password: str
+    admin_password: str
+    demo_prompt_limit: int
+    access_remember_max_age_seconds: int
     secret_key: str
     secure_cookies: bool
     session_max_age_seconds: int
@@ -153,6 +156,12 @@ def get_settings() -> Settings:
         request_timeout_seconds=_int_from_env("REQUEST_TIMEOUT_SECONDS", 180, 10),
         max_chat_context_chars=_int_from_env("MAX_CHAT_CONTEXT_CHARS", 60000, 2000),
         app_password=os.getenv("APP_PASSWORD", ""),
+        admin_password=os.getenv("ADMIN_PASSWORD", "pakistan123").strip(),
+        demo_prompt_limit=_int_from_env("DEMO_PROMPT_LIMIT", 5),
+        access_remember_max_age_seconds=_int_from_env(
+            "ACCESS_REMEMBER_MAX_AGE_SECONDS",
+            60 * 60 * 24 * 30,
+        ),
         secret_key=os.getenv("SECRET_KEY", "change-me-for-production"),
         secure_cookies=_bool_from_env("SECURE_COOKIES", app_env == "production"),
         session_max_age_seconds=_int_from_env("SESSION_MAX_AGE_SECONDS", 86400),

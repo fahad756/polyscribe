@@ -65,6 +65,10 @@ body {
     var(--bg);
 }
 
+body.access-locked .app-shell {
+  display: none;
+}
+
 button,
 textarea,
 input {
@@ -279,6 +283,27 @@ button {
   color: var(--muted);
   font-size: 0.78rem;
   margin-top: 2px;
+}
+
+.demo-badge {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  padding: 0 10px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.demo-badge:not([hidden]) {
+  margin-left: auto;
+}
+
+.demo-badge:not([hidden]) + .theme-button {
+  margin-left: 0;
 }
 
 .menu-button {
@@ -857,6 +882,164 @@ button {
 .source-toast.is-visible {
   opacity: 1;
   transform: translateY(0);
+}
+
+.access-modal,
+.limit-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  background: rgba(16, 18, 20, 0.62);
+  padding: 18px;
+  backdrop-filter: blur(16px);
+}
+
+.access-card,
+.limit-card {
+  width: min(460px, 100%);
+  display: grid;
+  gap: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  padding: 24px;
+}
+
+.access-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.access-brand h1,
+.access-brand p,
+.access-step h2,
+.access-step p,
+.limit-card h2,
+.limit-card p {
+  margin: 0;
+}
+
+.access-brand h1,
+.access-step h2,
+.limit-card h2 {
+  font-size: 1.28rem;
+  line-height: 1.2;
+}
+
+.access-brand p,
+.access-step p,
+.limit-card p {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.access-step {
+  display: grid;
+  gap: 12px;
+}
+
+.access-choice {
+  min-height: 70px;
+  display: grid;
+  gap: 3px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel-strong);
+  color: var(--text);
+  padding: 13px 14px;
+  text-align: left;
+}
+
+.access-choice:hover,
+.access-choice:focus-visible {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.access-choice strong,
+.access-choice span,
+.access-step label > span {
+  display: block;
+}
+
+.access-choice strong {
+  font-size: 0.98rem;
+}
+
+.access-choice span,
+.access-step label > span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.access-step input[type="password"],
+.access-step input[type="text"] {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 6px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel-strong);
+  color: var(--text);
+  padding: 0 12px;
+  outline: none;
+}
+
+.access-step input:focus {
+  border-color: var(--accent);
+}
+
+.remember-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.remember-row input {
+  flex: 0 0 auto;
+}
+
+.remember-row span {
+  color: var(--text);
+}
+
+.back-button {
+  width: fit-content;
+  min-height: 30px;
+  border-radius: 7px;
+  background: var(--panel-strong);
+  color: var(--muted);
+  padding: 0 10px;
+  font-weight: 800;
+}
+
+.back-button:hover {
+  color: var(--text);
+}
+
+.demo-limit-line {
+  border-left: 3px solid var(--gold);
+  padding-left: 10px;
+  font-size: 0.86rem;
+}
+
+.access-error {
+  min-height: 1.2em;
+  color: var(--warn);
+  font-size: 0.86rem;
+}
+
+.limit-card {
+  text-align: center;
+}
+
+.limit-card .send-button {
+  justify-self: center;
 }
 
 .welcome-modal {
