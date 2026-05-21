@@ -17,6 +17,8 @@ Core behavior:
 - If the source language is not named, infer it.
 - If the target language is missing, ask one concise clarifying question.
 - If the user asks about uploaded media, use the transcript already present in the conversation.
+- Treat transcript context as authoritative. Do not invent details that are not in the transcript.
+- If the answer is not supported by the transcript, say the transcript does not contain enough information.
 - Do not pretend to process files that have not been uploaded through the app.
 """
 
@@ -47,6 +49,12 @@ class TranscriptionResult:
     text: str
     chunk_count: int
     source_language: str = ""
+
+
+@dataclass(frozen=True)
+class TranscribedPart:
+    text: str
+    language: str = ""
 
 
 class AIService:
@@ -126,7 +134,8 @@ class GeminiChatProvider:
             "The user uploaded an audio/video file. A dedicated speech-to-text service "
             "has already produced the transcript below. Follow the user's instruction "
             "using this transcript as source material. If the user asks for the direct "
-            "transcript, return the transcript text without adding commentary.\n\n"
+            "transcript, return the transcript text without adding commentary. Do not "
+            "invent details that are not supported by the transcript.\n\n"
             f"File: {filename}\n\n"
             f"User instruction:\n{clean_prompt}\n\n"
             f"Transcript:\n{transcript}"
@@ -210,12 +219,16 @@ class GroqTranscriptionProvider:
         language: str = "",
     ) -> TranscriptionResult:
         transcripts: list[str] = []
+        languages: list[str] = []
         for index, path in enumerate(paths, start=1):
-            text = self._transcribe_one(path, prompt=prompt, language=language)
+            part = self._transcribe_one(path, language=language)
+            text = part.text
             if len(paths) > 1 and text:
                 transcripts.append(f"Part {index}\n{text}")
             else:
                 transcripts.append(text)
+            if part.language and part.language not in languages:
+                languages.append(part.language)
 
         text = "\n\n".join(part for part in transcripts if part.strip()).strip()
         if not text:
@@ -223,17 +236,15 @@ class GroqTranscriptionProvider:
         return TranscriptionResult(
             text=text,
             chunk_count=len(paths),
-            source_language=language.strip(),
+            source_language=", ".join(languages) or language.strip(),
         )
 
-    def _transcribe_one(self, path: Path, prompt: str = "", language: str = "") -> str:
+    def _transcribe_one(self, path: Path, language: str = "") -> TranscribedPart:
         kwargs: dict[str, Any] = {
             "model": self.settings.groq_transcription_model,
-            "response_format": "json",
+            "response_format": "verbose_json",
             "temperature": 0.0,
         }
-        if prompt.strip():
-            kwargs["prompt"] = prompt.strip()[:1000]
         if language.strip():
             kwargs["language"] = language.strip()
 
@@ -246,14 +257,21 @@ class GroqTranscriptionProvider:
         except Exception as exc:
             raise AIServiceError(f"Groq transcription failed: {exc}") from exc
 
-        text = getattr(result, "text", "")
-        if isinstance(text, str):
-            return text.strip()
         if hasattr(result, "model_dump"):
             dumped = result.model_dump()
-            text = dumped.get("text", "")
-            return text.strip() if isinstance(text, str) else ""
-        return ""
+        elif isinstance(result, dict):
+            dumped = result
+        else:
+            dumped = {}
+
+        text = getattr(result, "text", "") if not dumped else dumped.get("text", "")
+        detected_language = (
+            getattr(result, "language", "") if not dumped else dumped.get("language", "")
+        )
+        return TranscribedPart(
+            text=text.strip() if isinstance(text, str) else "",
+            language=detected_language.strip() if isinstance(detected_language, str) else "",
+        )
 
 
 def _is_retryable_gemini_error(exc: Exception) -> bool:
@@ -312,11 +330,15 @@ def _render_conversation(messages: list[dict[str, Any]], max_context_chars: int)
         transcript = str(metadata.get("transcript") or "").strip()
         filename = str(metadata.get("filename") or "uploaded media").strip()
         if transcript:
-            content = (
-                f"{content}\n\n"
-                f"[Transcript context from {filename}; use for follow-up questions]\n"
+            transcript_context = (
+                f"[Authoritative transcript from {filename}. Use this for follow-up "
+                f"questions about the uploaded media. Do not invent missing details.]\n"
                 f"{transcript}"
-            ).strip()
+            )
+            if message.get("kind") == "media_response":
+                content = transcript_context
+            else:
+                content = f"{content}\n\n{transcript_context}".strip()
         if not content:
             continue
 

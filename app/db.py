@@ -318,6 +318,20 @@ def list_messages(chat_id: str, owner_id: str) -> list[dict[str, Any]]:
     return [_row_to_dict(row) for row in rows if row is not None]
 
 
+def get_message(chat_id: str, owner_id: str, message_id: str) -> dict[str, Any] | None:
+    with _connect() as connection:
+        row = connection.execute(
+            """
+            SELECT m.id, m.chat_id, m.role, m.kind, m.content, m.metadata, m.created_at
+            FROM messages m
+            INNER JOIN chats c ON c.id = m.chat_id
+            WHERE m.chat_id = ? AND c.owner_id = ? AND m.id = ?
+            """,
+            (chat_id, owner_id, message_id),
+        ).fetchone()
+    return _row_to_dict(row)
+
+
 def add_message(
     chat_id: str,
     owner_id: str,
@@ -371,6 +385,30 @@ def add_message(
     if message is None:
         raise RuntimeError("Message creation failed")
     return message
+
+
+def update_message_metadata(
+    chat_id: str,
+    owner_id: str,
+    message_id: str,
+    metadata: dict[str, Any],
+) -> None:
+    metadata_json = json.dumps(metadata, separators=(",", ":"))
+    with _connect() as connection:
+        connection.execute(
+            """
+            UPDATE messages
+            SET metadata = ?
+            WHERE id = ?
+            AND chat_id = ?
+            AND EXISTS (
+                SELECT 1
+                FROM chats c
+                WHERE c.id = messages.chat_id AND c.owner_id = ?
+            )
+            """,
+            (metadata_json, message_id, chat_id, owner_id),
+        )
 
 
 def demo_usage(usage_key: str) -> int:

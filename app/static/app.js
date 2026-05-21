@@ -306,6 +306,85 @@ function animateChatTitle(chatId, title) {
   step();
 }
 
+function messageDisplayText(message) {
+  if (message.kind === "upload") {
+    return String(message.metadata?.prompt || "").trim();
+  }
+  return String(message.content || "").trim();
+}
+
+function mediaUrlForMessage(message, { download = false } = {}) {
+  if (message.metadata?.localUrl) return message.metadata.localUrl;
+  const chatId = message.chat_id || state.currentChatId;
+  if (!chatId || !message.id || !message.metadata?.mediaAvailable) return "";
+  const suffix = download ? "?download=true" : "";
+  return `/api/chats/${encodeURIComponent(chatId)}/messages/${encodeURIComponent(message.id)}/media${suffix}`;
+}
+
+function isAudioMedia(metadata = {}) {
+  const contentType = String(metadata.contentType || "").toLowerCase();
+  const extension = String(metadata.extension || "").toLowerCase();
+  return contentType.startsWith("audio/") || ["aac", "flac", "m4a", "mp3", "mpeg", "mpga", "ogg", "wav", "webm"].includes(extension);
+}
+
+function renderUploadMedia(message) {
+  if (message.kind !== "upload") return null;
+  const metadata = message.metadata || {};
+  const mediaUrl = mediaUrlForMessage(message);
+
+  const card = document.createElement("div");
+  card.className = "chat-media-card";
+
+  const info = document.createElement("div");
+  info.className = "chat-media-info";
+
+  const icon = document.createElement("span");
+  icon.className = "chat-media-icon";
+  icon.textContent = isAudioMedia(metadata) ? "Audio" : "File";
+
+  const text = document.createElement("div");
+  text.className = "chat-media-text";
+
+  const title = document.createElement("strong");
+  title.textContent = metadata.source === "recording" ? "Recorded audio" : metadata.filename || "Uploaded media";
+
+  const meta = document.createElement("span");
+  const size = Number(metadata.sizeBytes || 0) ? formatBytes(Number(metadata.sizeBytes)) : "";
+  const duration = metadata.durationMs ? formatDuration(Number(metadata.durationMs)) : "";
+  meta.textContent = [size, duration].filter(Boolean).join(" - ") || "Ready";
+
+  text.append(title, meta);
+  info.append(icon, text);
+  card.appendChild(info);
+
+  if (mediaUrl && isAudioMedia(metadata)) {
+    const audio = document.createElement("audio");
+    audio.className = "chat-audio";
+    audio.controls = true;
+    audio.preload = "metadata";
+    audio.src = mediaUrl;
+    card.appendChild(audio);
+  }
+
+  if (mediaUrl) {
+    const download = document.createElement("a");
+    download.className = "chat-media-download";
+    download.href = mediaUrlForMessage(message, { download: true }) || mediaUrl;
+    download.download = metadata.filename || "polyscribe-audio";
+    download.textContent = "Download";
+    card.appendChild(download);
+  }
+
+  if (!mediaUrl && metadata.mediaAvailable) {
+    const unavailable = document.createElement("span");
+    unavailable.className = "chat-media-unavailable";
+    unavailable.textContent = "Media is being prepared";
+    card.appendChild(unavailable);
+  }
+
+  return card;
+}
+
 function renderMessages(messages = state.messages) {
   els.messageList.textContent = "";
 
@@ -331,9 +410,12 @@ function renderMessages(messages = state.messages) {
 
     const body = document.createElement("div");
     body.className = "message-body";
-    body.textContent = message.content;
+    body.textContent = messageDisplayText(message);
 
-    content.append(meta, body);
+    content.appendChild(meta);
+    const media = renderUploadMedia(message);
+    if (media) content.appendChild(media);
+    if (body.textContent) content.appendChild(body);
 
     if (message.role === "assistant" && !message.pending) {
       const actions = document.createElement("div");
@@ -731,11 +813,8 @@ function finishRecording() {
     type: blob.type || mimeType,
     lastModified: Date.now(),
   });
-  state.selectedFile = file;
-  state.selectedFileMeta = { source: "recording", durationMs };
-  renderAttachment();
   updateControls();
-  els.messageInput.focus();
+  uploadFile(file, els.messageInput.value.trim(), { source: "recording", durationMs }).catch(showError);
 }
 
 async function syncCurrentChat() {
@@ -807,7 +886,7 @@ async function sendMessage(event) {
   }
 }
 
-async function uploadFile(file, prompt = "") {
+async function uploadFile(file, prompt = "", fileMeta = null) {
   if (!file || state.busy || state.recording) return;
   if (!(await canSubmitPrompt())) return;
   if (!state.currentChatId) {
@@ -815,6 +894,7 @@ async function uploadFile(file, prompt = "") {
     if (!chat) return;
   }
 
+  const uploadMeta = fileMeta || state.selectedFileMeta || {};
   els.messageInput.value = "";
   resizeTextarea();
   clearAttachment();
@@ -823,12 +903,32 @@ async function uploadFile(file, prompt = "") {
   body.append("file", file);
   body.append("prompt", prompt);
   body.append("language", "");
+  body.append("source", uploadMeta.source || "upload");
+  body.append("duration_ms", String(uploadMeta.durationMs || 0));
 
   setBusy(true, "Transcribing");
+  const localUrl = URL.createObjectURL(file);
   const uploadText = prompt ? `Uploaded ${file.name}\n\n${prompt}` : `Uploaded ${file.name}`;
   renderMessages([
     ...state.messages,
-    { id: "pending-upload", role: "user", content: uploadText },
+    {
+      id: "pending-upload",
+      chat_id: state.currentChatId,
+      role: "user",
+      kind: "upload",
+      content: uploadText,
+      metadata: {
+        filename: file.name,
+        sizeBytes: file.size,
+        contentType: file.type,
+        extension: file.name.split(".").pop() || "",
+        source: uploadMeta.source || "upload",
+        durationMs: uploadMeta.durationMs || 0,
+        prompt,
+        localUrl,
+        mediaAvailable: true,
+      },
+    },
     { id: "pending-transcribing", role: "assistant", content: "Listening closely...", pending: true },
   ]);
 
@@ -849,6 +949,7 @@ async function uploadFile(file, prompt = "") {
     await syncCurrentChat();
     showError(error);
   } finally {
+    URL.revokeObjectURL(localUrl);
     setBusy(false);
     els.fileInput.value = "";
   }

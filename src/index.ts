@@ -20,6 +20,7 @@ type WorkerEnv = {
   MAX_UPLOAD_MB?: string;
   DIRECT_AUDIO_MAX_MB?: string;
   KEEP_UPLOADS?: string;
+  STORE_CHAT_MEDIA?: string;
   FFMPEG_SEGMENT_SECONDS?: string;
   REQUEST_TIMEOUT_SECONDS?: string;
   MAX_CHAT_CONTEXT_CHARS?: string;
@@ -56,6 +57,7 @@ export class PolyScribeContainer extends Container {
     MAX_UPLOAD_MB: cfEnv.MAX_UPLOAD_MB ?? "100",
     DIRECT_AUDIO_MAX_MB: cfEnv.DIRECT_AUDIO_MAX_MB ?? "24",
     KEEP_UPLOADS: cfEnv.KEEP_UPLOADS ?? "false",
+    STORE_CHAT_MEDIA: cfEnv.STORE_CHAT_MEDIA ?? "true",
     FFMPEG_SEGMENT_SECONDS: cfEnv.FFMPEG_SEGMENT_SECONDS ?? "1200",
     REQUEST_TIMEOUT_SECONDS: cfEnv.REQUEST_TIMEOUT_SECONDS ?? "180",
     MAX_CHAT_CONTEXT_CHARS: cfEnv.MAX_CHAT_CONTEXT_CHARS ?? "60000",

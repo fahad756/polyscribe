@@ -47,6 +47,8 @@ services:
         value: "24"
       - key: KEEP_UPLOADS
         value: "false"
+      - key: STORE_CHAT_MEDIA
+        value: "true"
       - key: FFMPEG_SEGMENT_SECONDS
         value: "1200"
       - key: REQUEST_TIMEOUT_SECONDS

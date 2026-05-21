@@ -83,6 +83,7 @@ GROQ_API_KEY=<private-host-env-var>
 DATABASE_PATH=/data/polyscribe.db
 UPLOAD_DIR=/data/uploads
 KEEP_UPLOADS=false
+STORE_CHAT_MEDIA=true
 ```
 
 For a public demo, keep `DEMO_PROMPT_LIMIT` low and add platform-level rate limits. Free API limits can still be exhausted by public traffic.
@@ -111,7 +112,8 @@ Render free notes:
 
 - Free services spin down after idle time and wake on the next request.
 - The filesystem is ephemeral on free services. SQLite chat history and uploaded files can disappear after redeploys, restarts, or idle spin-downs.
-- `KEEP_UPLOADS=false` keeps uploaded media from building up on disk.
+- `STORE_CHAT_MEDIA=true` keeps uploaded audio playable/downloadable in the chat while the free instance filesystem remains available.
+- `KEEP_UPLOADS=false` still removes temporary conversion chunks and non-chat upload leftovers.
 
 ## Cloudflare Containers Deployment
 

@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Literal
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
@@ -168,6 +168,19 @@ def _consume_demo_prompt(request: Request, access: AccessSession) -> None:
         )
 
 
+def _stored_media_path(settings, owner_id: str, message_id: str, extension: str) -> Path:
+    safe_extension = "".join(char for char in extension.lower() if char.isalnum()) or "media"
+    return settings.upload_dir / "chat_media" / owner_id / f"{message_id}.{safe_extension}"
+
+
+def _media_kind(content_type: str, extension: str) -> str:
+    if content_type.startswith("audio/") or extension in {"aac", "flac", "m4a", "mp3", "mpeg", "mpga", "ogg", "wav", "webm"}:
+        return "audio"
+    if content_type.startswith("video/") or extension in {"mkv", "mov", "mp4"}:
+        return "video"
+    return "media"
+
+
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
     return RedirectResponse("/", status_code=303)
@@ -278,6 +291,44 @@ async def api_delete_chat(request: Request, chat_id: str):
     return {"deleted": True, "access": _access_payload(request, access)}
 
 
+@app.get("/api/chats/{chat_id}/messages/{message_id}/media")
+async def api_get_message_media(
+    request: Request,
+    chat_id: str,
+    message_id: str,
+    download: bool = False,
+):
+    access = _access_from_request(request)
+    message = db.get_message(chat_id, access.owner_id, message_id)
+    if message is None:
+        raise HTTPException(status_code=404, detail="Media not found.")
+
+    metadata = message.get("metadata") or {}
+    if message.get("kind") != "upload" or not metadata.get("mediaAvailable"):
+        raise HTTPException(status_code=404, detail="Media not available.")
+
+    settings = get_settings()
+    media_path = _stored_media_path(
+        settings,
+        access.owner_id,
+        message_id,
+        str(metadata.get("extension") or "media"),
+    )
+    try:
+        media_path.resolve().relative_to(settings.upload_dir.resolve())
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="Media not available.") from exc
+    if not media_path.exists():
+        raise HTTPException(status_code=404, detail="Media file is no longer available.")
+
+    return FileResponse(
+        media_path,
+        media_type=str(metadata.get("contentType") or "application/octet-stream"),
+        filename=str(metadata.get("filename") or media_path.name),
+        content_disposition_type="attachment" if download else "inline",
+    )
+
+
 @app.post("/api/chats/{chat_id}/messages")
 async def api_send_message(request: Request, chat_id: str, payload: ChatMessageIn):
     access = _access_from_request(request)
@@ -309,6 +360,8 @@ async def api_upload_media(
     file: UploadFile = File(...),
     prompt: str = Form(""),
     language: str = Form(""),
+    source: str = Form(""),
+    duration_ms: int = Form(0),
 ):
     access = _access_from_request(request)
     chat = db.get_chat(chat_id, access.owner_id)
@@ -319,43 +372,50 @@ async def api_upload_media(
     settings = get_settings()
     saved = await save_upload(file, settings)
     prepared = None
+    media_path = saved.path
 
     user_content = f"Uploaded {saved.original_filename}"
     if prompt.strip():
         user_content = f"{user_content}\n\n{prompt.strip()}"
 
-    db.add_message(
+    user_metadata = {
+        "filename": saved.original_filename,
+        "sizeBytes": saved.size_bytes,
+        "extension": saved.extension,
+        "contentType": saved.content_type,
+        "mediaKind": _media_kind(saved.content_type, saved.extension),
+        "mediaAvailable": settings.store_chat_media,
+        "source": "recording" if source.strip().lower() == "recording" else "upload",
+        "durationMs": max(duration_ms, 0),
+        "prompt": prompt.strip(),
+    }
+    user_message = db.add_message(
         chat_id,
         access.owner_id,
         "user",
         user_content,
         kind="upload",
-        metadata={
-            "filename": saved.original_filename,
-            "sizeBytes": saved.size_bytes,
-            "extension": saved.extension,
-            "prompt": prompt.strip(),
-        },
+        metadata=user_metadata,
     )
+    if settings.store_chat_media:
+        target_path = _stored_media_path(settings, access.owner_id, user_message["id"], saved.extension)
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        saved.path.replace(target_path)
+        media_path = target_path
 
     try:
-        prepared = await asyncio.to_thread(prepare_for_transcription, saved.path, settings)
+        prepared = await asyncio.to_thread(prepare_for_transcription, media_path, settings)
         service = AIService(settings)
         result = await asyncio.to_thread(
             service.transcribe_paths,
             prepared.paths,
-            prompt,
+            "",
             language,
         )
     finally:
-        cleanup_media(saved, prepared, settings)
+        cleanup_media(saved, prepared, settings, remove_original=not settings.store_chat_media)
 
-    assistant_content = await asyncio.to_thread(
-        service.answer_from_transcript,
-        prompt,
-        result.text,
-        saved.original_filename,
-    )
+    assistant_content = f"Transcript: {saved.original_filename}\n\n{result.text.strip()}"
     db.add_message(
         chat_id,
         access.owner_id,

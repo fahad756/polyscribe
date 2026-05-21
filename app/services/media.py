@@ -12,7 +12,7 @@ from fastapi import UploadFile
 from app.config import Settings
 
 
-DIRECT_MEDIA_EXTENSIONS = {".mp3", ".mp4", ".mpeg", ".mpga", ".m4a", ".wav", ".webm"}
+DIRECT_MEDIA_EXTENSIONS = {".aac", ".flac", ".m4a", ".mp3", ".mpeg", ".mpga", ".wav"}
 READ_CHUNK_SIZE = 1024 * 1024
 
 
@@ -26,6 +26,7 @@ class SavedUpload:
     original_filename: str
     size_bytes: int
     extension: str
+    content_type: str
 
 
 @dataclass(frozen=True)
@@ -79,6 +80,7 @@ async def save_upload(file: UploadFile, settings: Settings) -> SavedUpload:
         original_filename=original_filename,
         size_bytes=total,
         extension=extension,
+        content_type=(file.content_type or "").split(";", 1)[0].strip().lower(),
     )
 
 
@@ -147,8 +149,14 @@ def prepare_for_transcription(path: Path, settings: Settings) -> PreparedMedia:
     return PreparedMedia(paths=chunks, cleanup_dir=cleanup_dir)
 
 
-def cleanup_media(saved_upload: SavedUpload, prepared: PreparedMedia | None, settings: Settings) -> None:
+def cleanup_media(
+    saved_upload: SavedUpload,
+    prepared: PreparedMedia | None,
+    settings: Settings,
+    *,
+    remove_original: bool = True,
+) -> None:
     if prepared and prepared.cleanup_dir:
         shutil.rmtree(prepared.cleanup_dir, ignore_errors=True)
-    if not settings.keep_uploads:
+    if remove_original and not settings.keep_uploads:
         saved_upload.path.unlink(missing_ok=True)

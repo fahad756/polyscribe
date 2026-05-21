@@ -97,6 +97,7 @@ class Settings:
     max_upload_mb: int
     audio_chunk_max_mb: int
     keep_uploads: bool
+    store_chat_media: bool
     ffmpeg_segment_seconds: int
     allowed_extensions: frozenset[str]
     request_timeout_seconds: int
@@ -151,6 +152,7 @@ def get_settings() -> Settings:
             24,
         ),
         keep_uploads=_bool_from_env("KEEP_UPLOADS", False),
+        store_chat_media=_bool_from_env("STORE_CHAT_MEDIA", True),
         ffmpeg_segment_seconds=_int_from_env("FFMPEG_SEGMENT_SECONDS", 1200, 60),
         allowed_extensions=_extensions_from_env(),
         request_timeout_seconds=_int_from_env("REQUEST_TIMEOUT_SECONDS", 180, 10),
@@ -172,3 +174,5 @@ def ensure_runtime_paths(settings: Settings | None = None) -> None:
     settings = settings or get_settings()
     settings.database_path.parent.mkdir(parents=True, exist_ok=True)
     settings.upload_dir.mkdir(parents=True, exist_ok=True)
+    if settings.store_chat_media:
+        (settings.upload_dir / "chat_media").mkdir(parents=True, exist_ok=True)
