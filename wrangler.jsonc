@@ -15,7 +15,7 @@
     "GEMINI_FALLBACK_MODELS": "gemini-2.5-flash-lite",
     "GEMINI_RETRY_ATTEMPTS": "3",
     "GEMINI_RETRY_BASE_DELAY_SECONDS": "1",
-    "GROQ_TRANSCRIPTION_MODEL": "whisper-large-v3-turbo",
+    "GROQ_TRANSCRIPTION_MODEL": "whisper-large-v3",
     "DATABASE_PATH": "/data/polyscribe.db",
     "UPLOAD_DIR": "/data/uploads",
     "MAX_UPLOAD_MB": "100",

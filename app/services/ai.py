@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import random
+import re
 import time
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -55,6 +57,8 @@ class TranscriptionResult:
 class TranscribedPart:
     text: str
     language: str = ""
+    suspicious: bool = False
+    reason: str = ""
 
 
 class AIService:
@@ -221,7 +225,7 @@ class GroqTranscriptionProvider:
         transcripts: list[str] = []
         languages: list[str] = []
         for index, path in enumerate(paths, start=1):
-            part = self._transcribe_one(path, language=language)
+            part = self._transcribe_with_fallback(path, language=language)
             text = part.text
             if len(paths) > 1 and text:
                 transcripts.append(f"Part {index}\n{text}")
@@ -239,9 +243,38 @@ class GroqTranscriptionProvider:
             source_language=", ".join(languages) or language.strip(),
         )
 
-    def _transcribe_one(self, path: Path, language: str = "") -> TranscribedPart:
+    def _transcribe_with_fallback(self, path: Path, language: str = "") -> TranscribedPart:
+        best_part: TranscribedPart | None = None
+        for model in self._model_sequence():
+            part = self._transcribe_one(path, model=model, language=language)
+            if not part.suspicious:
+                return part
+            if best_part is None or len(part.text) > len(best_part.text):
+                best_part = part
+
+        if best_part is None:
+            raise AIServiceError("No speech was detected in the uploaded media.")
+        raise AIServiceError(
+            "The audio was detected, but the transcript was not reliable enough to show. "
+            "Please record again closer to the microphone, reduce background noise, or upload a clearer file."
+        )
+
+    def _model_sequence(self) -> tuple[str, ...]:
+        models: list[str] = []
+        for model in (
+            self.settings.groq_transcription_model,
+            *self.settings.groq_transcription_fallback_models,
+        ):
+            clean = model.strip()
+            if clean and clean not in models:
+                models.append(clean)
+        if "whisper-large-v3" not in models:
+            models.append("whisper-large-v3")
+        return tuple(models)
+
+    def _transcribe_one(self, path: Path, model: str, language: str = "") -> TranscribedPart:
         kwargs: dict[str, Any] = {
-            "model": self.settings.groq_transcription_model,
+            "model": model,
             "response_format": "verbose_json",
             "temperature": 0.0,
         }
@@ -268,9 +301,13 @@ class GroqTranscriptionProvider:
         detected_language = (
             getattr(result, "language", "") if not dumped else dumped.get("language", "")
         )
+        clean_text = text.strip() if isinstance(text, str) else ""
+        suspicious, reason = _suspicious_transcript(clean_text, dumped)
         return TranscribedPart(
-            text=text.strip() if isinstance(text, str) else "",
+            text=clean_text,
             language=detected_language.strip() if isinstance(detected_language, str) else "",
+            suspicious=suspicious,
+            reason=reason,
         )
 
 
@@ -282,6 +319,57 @@ def _is_retryable_gemini_error(exc: Exception) -> bool:
             parts.append(str(value))
     text = " ".join(parts).lower()
     return any(marker in text for marker in RETRYABLE_GEMINI_MARKERS)
+
+
+def _suspicious_transcript(text: str, response_data: dict[str, Any]) -> tuple[bool, str]:
+    clean = " ".join(text.split())
+    if not clean:
+        return True, "empty"
+
+    tokens = re.findall(r"[\w']+", clean.lower(), flags=re.UNICODE)
+    if len(tokens) >= 6:
+        counts = Counter(tokens)
+        _, repeated_count = counts.most_common(1)[0]
+        unique_ratio = len(counts) / len(tokens)
+        if repeated_count >= 5 and repeated_count / len(tokens) >= 0.45:
+            return True, "repeated words"
+        if len(tokens) >= 10 and unique_ratio <= 0.28:
+            return True, "low vocabulary"
+
+    repeated_phrase = re.search(
+        r"\b(.{2,24}?)(?:\s+\1\b){3,}",
+        clean,
+        flags=re.IGNORECASE,
+    )
+    if repeated_phrase:
+        return True, "repeated phrase"
+
+    segments = response_data.get("segments") if isinstance(response_data, dict) else None
+    if isinstance(segments, list) and segments:
+        low_confidence = 0
+        for segment in segments:
+            if not isinstance(segment, dict):
+                continue
+            avg_logprob = _float_or_none(segment.get("avg_logprob"))
+            compression_ratio = _float_or_none(segment.get("compression_ratio"))
+            no_speech_prob = _float_or_none(segment.get("no_speech_prob"))
+            if no_speech_prob is not None and no_speech_prob >= 0.72:
+                low_confidence += 1
+            elif avg_logprob is not None and avg_logprob <= -1.15:
+                low_confidence += 1
+            elif compression_ratio is not None and compression_ratio >= 2.4:
+                low_confidence += 1
+        if low_confidence and low_confidence >= max(1, len(segments) // 2):
+            return True, "low confidence"
+
+    return False, ""
+
+
+def _float_or_none(value: Any) -> float | None:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def _is_direct_transcript_request(prompt: str) -> bool:

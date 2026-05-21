@@ -97,7 +97,7 @@ def prepare_for_transcription(path: Path, settings: Settings) -> PreparedMedia:
 
     cleanup_dir = settings.upload_dir / f"chunks_{uuid.uuid4().hex}"
     cleanup_dir.mkdir(parents=True, exist_ok=True)
-    output_pattern = cleanup_dir / "chunk_%03d.mp3"
+    output_pattern = cleanup_dir / "chunk_%03d.flac"
     command = [
         ffmpeg_path,
         "-hide_banner",
@@ -111,8 +111,10 @@ def prepare_for_transcription(path: Path, settings: Settings) -> PreparedMedia:
         "1",
         "-ar",
         "16000",
-        "-b:a",
-        "48k",
+        "-c:a",
+        "flac",
+        "-compression_level",
+        "8",
         "-f",
         "segment",
         "-segment_time",
@@ -134,7 +136,7 @@ def prepare_for_transcription(path: Path, settings: Settings) -> PreparedMedia:
         detail = (completed.stderr or "ffmpeg failed").strip()
         raise MediaError(f"Could not extract audio from this file: {detail}")
 
-    chunks = sorted(cleanup_dir.glob("chunk_*.mp3"))
+    chunks = sorted(cleanup_dir.glob("chunk_*.flac"))
     if not chunks:
         shutil.rmtree(cleanup_dir, ignore_errors=True)
         raise MediaError("No audio track was found in the uploaded file.")

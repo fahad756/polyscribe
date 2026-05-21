@@ -15,6 +15,7 @@ type WorkerEnv = {
   GEMINI_RETRY_BASE_DELAY_SECONDS?: string;
   GROQ_API_KEY?: string;
   GROQ_TRANSCRIPTION_MODEL?: string;
+  GROQ_TRANSCRIPTION_FALLBACK_MODELS?: string;
   DATABASE_PATH?: string;
   UPLOAD_DIR?: string;
   MAX_UPLOAD_MB?: string;
@@ -51,7 +52,8 @@ export class PolyScribeContainer extends Container {
     GEMINI_RETRY_ATTEMPTS: cfEnv.GEMINI_RETRY_ATTEMPTS ?? "3",
     GEMINI_RETRY_BASE_DELAY_SECONDS: cfEnv.GEMINI_RETRY_BASE_DELAY_SECONDS ?? "1",
     GROQ_API_KEY: cfEnv.GROQ_API_KEY ?? "",
-    GROQ_TRANSCRIPTION_MODEL: cfEnv.GROQ_TRANSCRIPTION_MODEL ?? "whisper-large-v3-turbo",
+    GROQ_TRANSCRIPTION_MODEL: cfEnv.GROQ_TRANSCRIPTION_MODEL ?? "whisper-large-v3",
+    GROQ_TRANSCRIPTION_FALLBACK_MODELS: cfEnv.GROQ_TRANSCRIPTION_FALLBACK_MODELS ?? "",
     DATABASE_PATH: cfEnv.DATABASE_PATH ?? "/data/polyscribe.db",
     UPLOAD_DIR: cfEnv.UPLOAD_DIR ?? "/data/uploads",
     MAX_UPLOAD_MB: cfEnv.MAX_UPLOAD_MB ?? "100",

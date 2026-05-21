@@ -79,6 +79,16 @@ def _extensions_from_env() -> frozenset[str]:
     return frozenset(values or DEFAULT_ALLOWED_EXTENSIONS)
 
 
+def _groq_transcription_model_from_env() -> str:
+    model = os.getenv("GROQ_TRANSCRIPTION_MODEL", "whisper-large-v3").strip()
+    if model == "whisper-large-v3-turbo" and not _bool_from_env(
+        "GROQ_TRANSCRIPTION_FAST_MODE",
+        False,
+    ):
+        return "whisper-large-v3"
+    return model or "whisper-large-v3"
+
+
 @dataclass(frozen=True)
 class Settings:
     app_name: str
@@ -92,6 +102,7 @@ class Settings:
     gemini_retry_base_delay_seconds: float
     groq_api_key: str
     groq_transcription_model: str
+    groq_transcription_fallback_models: tuple[str, ...]
     database_path: Path
     upload_dir: Path
     max_upload_mb: int
@@ -140,10 +151,11 @@ def get_settings() -> Settings:
             0.0,
         ),
         groq_api_key=os.getenv("GROQ_API_KEY", "").strip(),
-        groq_transcription_model=os.getenv(
-            "GROQ_TRANSCRIPTION_MODEL",
-            "whisper-large-v3-turbo",
-        ).strip(),
+        groq_transcription_model=_groq_transcription_model_from_env(),
+        groq_transcription_fallback_models=_csv_from_env(
+            "GROQ_TRANSCRIPTION_FALLBACK_MODELS",
+            "",
+        ),
         database_path=Path(os.getenv("DATABASE_PATH", "runtime/polyscribe.db")),
         upload_dir=Path(os.getenv("UPLOAD_DIR", "runtime/uploads")),
         max_upload_mb=_int_from_env("MAX_UPLOAD_MB", 200),
