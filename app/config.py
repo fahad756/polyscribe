@@ -156,7 +156,7 @@ def get_settings() -> Settings:
         request_timeout_seconds=_int_from_env("REQUEST_TIMEOUT_SECONDS", 180, 10),
         max_chat_context_chars=_int_from_env("MAX_CHAT_CONTEXT_CHARS", 60000, 2000),
         app_password=os.getenv("APP_PASSWORD", ""),
-        admin_password=os.getenv("ADMIN_PASSWORD", "pakistan123").strip(),
+        admin_password=os.getenv("ADMIN_PASSWORD", "").strip(),
         demo_prompt_limit=_int_from_env("DEMO_PROMPT_LIMIT", 5),
         access_remember_max_age_seconds=_int_from_env(
             "ACCESS_REMEMBER_MAX_AGE_SECONDS",

@@ -3,9 +3,10 @@ __pycache__/
 .pytest_cache/
 .venv/
 venv/
+node_modules/
+.wrangler/
 .env
 runtime/
 dist/
 build/
 *.egg-info/
-

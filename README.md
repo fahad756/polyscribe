@@ -49,7 +49,7 @@ Copy-Item .env.example .env
 Edit `.env`:
 
 ```env
-ADMIN_PASSWORD=pakistan123
+ADMIN_PASSWORD=<your-admin-password>
 DEMO_PROMPT_LIMIT=5
 GEMINI_API_KEY=<your-gemini-api-key>
 GEMINI_FALLBACK_MODELS=gemini-2.5-flash-lite
@@ -71,7 +71,7 @@ Do not commit `.env`. It is ignored by git. In your hosting provider, add these 
 ```env
 APP_ENV=production
 SECRET_KEY=<long-random-secret>
-ADMIN_PASSWORD=pakistan123
+ADMIN_PASSWORD=<private-host-env-var>
 DEMO_PROMPT_LIMIT=5
 CHAT_PROVIDER=gemini
 GEMINI_API_KEY=<private-host-env-var>
@@ -86,6 +86,61 @@ KEEP_UPLOADS=false
 ```
 
 For a public demo, keep `DEMO_PROMPT_LIMIT` low and add platform-level rate limits. Free API limits can still be exhausted by public traffic.
+
+## Cloudflare Containers Deployment
+
+This app is a Python FastAPI container with ffmpeg, SQLite, uploads, and API clients. Deploy it to Cloudflare as a **Container behind a Worker**, not as a plain Cloudflare Pages site.
+
+Cloudflare requirements:
+
+- Docker Desktop running locally.
+- Wrangler CLI login with the Cloudflare account.
+- Workers Paid plan for Cloudflare Containers.
+
+Install Worker tooling:
+
+```powershell
+npm install
+```
+
+Login:
+
+```powershell
+npm run cf:login
+npm run cf:whoami
+```
+
+Set Cloudflare Worker secrets. Do not put these values in git:
+
+```powershell
+npx wrangler secret put GEMINI_API_KEY
+npx wrangler secret put GROQ_API_KEY
+npx wrangler secret put ADMIN_PASSWORD
+npx wrangler secret put SECRET_KEY
+```
+
+Generate a strong `SECRET_KEY` if needed:
+
+```powershell
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+```
+
+Deploy:
+
+```powershell
+npm run deploy
+npm run cf:containers
+```
+
+After the first deploy, wait a few minutes for the container to provision, then open the `workers.dev` URL printed by Wrangler.
+
+If Wrangler returns `Unauthorized: You do not have access to Cloudflare Containers`, enable the Workers Paid plan for the Cloudflare account, then run `npm run deploy` again.
+
+Cloudflare notes:
+
+- `MAX_UPLOAD_MB` is set to `100` in `wrangler.jsonc` because Cloudflare Free/Pro request body limits are 100 MB.
+- The Worker includes a Durable Object demo limiter, so demo prompt limits are enforced before requests reach the container.
+- Container filesystem disk is ephemeral when the container sleeps. The app's local SQLite chat history is suitable for a portfolio demo, but long-term durable chat history should be moved to D1, Durable Objects storage, or an external database.
 
 ## Docker
 

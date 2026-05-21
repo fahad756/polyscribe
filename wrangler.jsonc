@@ -1,0 +1,58 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "polyscribe",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-05-21",
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "APP_NAME": "PolyScribe",
+    "APP_ENV": "production",
+    "CHAT_PROVIDER": "gemini",
+    "TRANSCRIPTION_PROVIDER": "groq",
+    "GEMINI_MODEL": "gemini-2.5-flash",
+    "GEMINI_FALLBACK_MODELS": "gemini-2.5-flash-lite",
+    "GEMINI_RETRY_ATTEMPTS": "3",
+    "GEMINI_RETRY_BASE_DELAY_SECONDS": "1",
+    "GROQ_TRANSCRIPTION_MODEL": "whisper-large-v3-turbo",
+    "DATABASE_PATH": "/data/polyscribe.db",
+    "UPLOAD_DIR": "/data/uploads",
+    "MAX_UPLOAD_MB": "100",
+    "DIRECT_AUDIO_MAX_MB": "24",
+    "KEEP_UPLOADS": "false",
+    "FFMPEG_SEGMENT_SECONDS": "1200",
+    "REQUEST_TIMEOUT_SECONDS": "180",
+    "MAX_CHAT_CONTEXT_CHARS": "60000",
+    "DEMO_PROMPT_LIMIT": "5",
+    "ACCESS_REMEMBER_MAX_AGE_SECONDS": "2592000",
+    "WEB_CONCURRENCY": "1",
+    "PORT": "8000"
+  },
+  "containers": [
+    {
+      "class_name": "PolyScribeContainer",
+      "image": "./Dockerfile",
+      "max_instances": 1,
+      "instance_type": "basic"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "POLYSCRIBE_CONTAINER",
+        "class_name": "PolyScribeContainer"
+      },
+      {
+        "name": "DEMO_LIMITER",
+        "class_name": "DemoLimiter"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["PolyScribeContainer", "DemoLimiter"]
+    }
+  ]
+}
