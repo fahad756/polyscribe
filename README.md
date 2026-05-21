@@ -87,6 +87,32 @@ KEEP_UPLOADS=false
 
 For a public demo, keep `DEMO_PROMPT_LIMIT` low and add platform-level rate limits. Free API limits can still be exhausted by public traffic.
 
+## Render Free Deployment
+
+The repo includes `render.yaml` for a free Render web service that builds from the existing `Dockerfile`. This keeps the Python/FastAPI app and ffmpeg support.
+
+Deploy from the Render dashboard:
+
+1. Click **New +**.
+2. Choose **Blueprint**.
+3. Connect `https://github.com/fahad756/polyscribe`.
+4. Select the `main` branch and apply the detected `render.yaml`.
+5. When Render asks for unsynced secret values, add:
+
+```env
+ADMIN_PASSWORD=<your-admin-password>
+GEMINI_API_KEY=<your-gemini-api-key>
+GROQ_API_KEY=<your-groq-api-key>
+```
+
+Render generates `SECRET_KEY` automatically from the Blueprint. After deploy, open the `.onrender.com` URL shown by Render.
+
+Render free notes:
+
+- Free services spin down after idle time and wake on the next request.
+- The filesystem is ephemeral on free services. SQLite chat history and uploaded files can disappear after redeploys, restarts, or idle spin-downs.
+- `KEEP_UPLOADS=false` keeps uploaded media from building up on disk.
+
 ## Cloudflare Containers Deployment
 
 This app is a Python FastAPI container with ffmpeg, SQLite, uploads, and API clients. Deploy it to Cloudflare as a **Container behind a Worker**, not as a plain Cloudflare Pages site.

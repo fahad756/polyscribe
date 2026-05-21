@@ -1,0 +1,57 @@
+services:
+  - type: web
+    name: polyscribe
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /healthz
+    autoDeployTrigger: commit
+    envVars:
+      - key: APP_NAME
+        value: PolyScribe
+      - key: APP_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: DEMO_PROMPT_LIMIT
+        value: "5"
+      - key: ACCESS_REMEMBER_MAX_AGE_SECONDS
+        value: "2592000"
+      - key: CHAT_PROVIDER
+        value: gemini
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: GEMINI_FALLBACK_MODELS
+        value: gemini-2.5-flash-lite
+      - key: GEMINI_RETRY_ATTEMPTS
+        value: "3"
+      - key: GEMINI_RETRY_BASE_DELAY_SECONDS
+        value: "1"
+      - key: TRANSCRIPTION_PROVIDER
+        value: groq
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_TRANSCRIPTION_MODEL
+        value: whisper-large-v3-turbo
+      - key: DATABASE_PATH
+        value: /data/polyscribe.db
+      - key: UPLOAD_DIR
+        value: /data/uploads
+      - key: MAX_UPLOAD_MB
+        value: "100"
+      - key: DIRECT_AUDIO_MAX_MB
+        value: "24"
+      - key: KEEP_UPLOADS
+        value: "false"
+      - key: FFMPEG_SEGMENT_SECONDS
+        value: "1200"
+      - key: REQUEST_TIMEOUT_SECONDS
+        value: "180"
+      - key: MAX_CHAT_CONTEXT_CHARS
+        value: "60000"
+      - key: WEB_CONCURRENCY
+        value: "1"
